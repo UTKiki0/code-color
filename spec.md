@@ -108,10 +108,11 @@ The first playable milestone remains one battle demonstrating bottle matching, c
   - Stage 2: 3 enemies with 12 HP and countdowns 4, 4, 5; then a boss with 40 HP that hits for 5.
   - Stage 3: 3 enemies with 14 HP and countdowns 3, 4, 5; then a boss with 50 HP that hits for 6.
   - Every boss has a countdown of 5 turns and attacks when it reaches 0, like other enemies, using its own damage.
+- Run screens (checkpoint 7, Agent proposal that the Developer did not object to): a progress strip shows the stage and whether it is a battle or a boss (six markers; done steps filled, the current step bold and underlined, bosses marked with a star). A boss fight shows one large card labeled Boss. After a won battle, a "Battle cleared!" or "Boss defeated!" screen shows HP, the paint kept, whether the player heals, and what comes next, with a Continue button; if a mix was still held it says the mix will be lost. Winning the final boss shows "Run won!" and losing shows "Run lost", each with a New run button.
 - Out of scope for Phase 3: character unlocks, saving, and extra encounter variety (Phase 4).
 - Open: how boss art is made (placeholder CSS shapes for now), the exact ability numbers, and whether any ability needs an on-screen warning before it triggers.
 
-**Test settings** (for the Developer's testing, not player features): a weapon dropdown above the board; `?seed=N` in the address for a repeatable battle; `?fullPaint` to start with full paint bottles so mixing and rainbow can be tried quickly.
+**Test settings** (for the Developer's testing, not player features), added to the address: `?seed=N` for a repeatable game; `?fullPaint` to start with full paint bottles so mixing and rainbow can be tried quickly; `?battle` for a single regular battle instead of a run (`?battle=2` for stage 2's battle); `?boss` for a single boss battle (`?boss=3` for stage 3's boss); `?testing` to show the weapon dropdown during a run. The single-battle and single-boss modes show the weapon dropdown and a Restart button; the run shows a New run button and no dropdown.
 
 **Acceptance checks (all pending implementation and verification)**
 - A swap that creates no match reverts and changes no countdown, burn, or paint.

@@ -11,6 +11,7 @@ export interface Commands {
   mix(a: PaintColor, b: PaintColor): void;
   useMix(target: { enemyId: number } | { color: PaintColor }): void;
   setWeapon(weapon: Weapon): void;
+  continueRun(): void;
   restart(): void;
 }
 
@@ -110,7 +111,9 @@ export function attachInput(root: HTMLElement, commands: Commands): void {
   root.addEventListener('pointercancel', end);
 
   root.addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).closest('[data-restart]')) commands.restart();
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-restart]')) commands.restart();
+    else if (target.closest('[data-continue]')) commands.continueRun();
   });
   root.addEventListener('change', (e) => {
     const select = (e.target as HTMLElement).closest<HTMLSelectElement>('[data-weapon]');

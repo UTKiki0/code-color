@@ -4,7 +4,7 @@ import type { PaintColor } from '../game/rules';
 import { computeFalls } from './falls';
 import { floatOverCells, floatOverEnemy } from './fx';
 import { stepSpeed } from './pace';
-import { renderBattle } from './view';
+import { renderBattle, type ViewOptions } from './view';
 
 // Replays one move step by step: for each cascade step the matched bottles pop,
 // the numbers and combo text appear over them while the bars update, and then the
@@ -78,6 +78,7 @@ function showStepFx(step: Step): void {
 
 export async function playMove(
   root: HTMLElement, before: BattleState, a: Cell, b: Cell, result: TurnResult, message: string,
+  base: Partial<ViewOptions> = {}, // run display options, repeated on every frame so they do not flicker
 ): Promise<void> {
   // A copy of the state that is updated as steps play; the real state is applied by the caller.
   const view: BattleState = { ...before, paint: { ...before.paint }, enemies: before.enemies.map((e) => ({ ...e })) };
@@ -87,13 +88,13 @@ export async function playMove(
     const stepMessage = step.clear.step > 1 ? `Combo x${step.clear.step}!` : message;
     const speed = stepSpeed(step.clear.step); // later steps play faster
     applyToView(view, step.derived);
-    renderBattle(root, { ...view, board }, { message: stepMessage, popCells: step.clear.cells, speed });
+    renderBattle(root, { ...view, board }, { ...base, message: stepMessage, popCells: step.clear.cells, speed });
     showStepFx(step);
     await sleep(POP_MS * speed);
 
     const falls = computeFalls(step.clear.cells);
     board = step.clear.boardAfter;
-    renderBattle(root, { ...view, board }, { message: stepMessage, falls, speed });
+    renderBattle(root, { ...view, board }, { ...base, message: stepMessage, falls, speed });
     await sleep((FALL_BASE_MS + Math.max(0, ...falls.values()) * FALL_PER_ROW_MS) * speed);
   }
 
@@ -101,7 +102,7 @@ export async function playMove(
   const burns = result.events.filter((e) => e.type === 'enemyDamaged' && e.source === 'burn');
   if (burns.length > 0) {
     applyToView(view, burns);
-    renderBattle(root, { ...view, board }, { message });
+    renderBattle(root, { ...view, board }, { ...base, message });
     for (const e of burns) if (e.type === 'enemyDamaged') floatOverEnemy(e.enemyId, `-${e.amount} burn`, 'damage');
     await sleep(BURN_BEAT_MS);
   }

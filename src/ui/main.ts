@@ -1,12 +1,24 @@
 import './styles.css';
-import { startSession } from './session';
+import { startSession, type SessionMode } from './session';
 
-// ?seed=123 in the address makes a battle repeatable; otherwise each load is random.
-const seedParam = new URLSearchParams(window.location.search).get('seed');
+// Options in the address (all are for testing and are not shown to players):
+//   ?seed=123   a repeatable game; otherwise each load is random
+//   ?fullPaint  start with full paint bottles, so mixing and rainbow can be tried quickly
+//   ?battle     a single regular battle instead of a run (?battle=2 for stage 2's battle)
+//   ?boss       a single boss battle instead of a run (?boss=3 for stage 3's boss)
+//   ?testing    show the weapon dropdown during a run
+const params = new URLSearchParams(window.location.search);
+
+const seedParam = params.get('seed');
 const seed = seedParam !== null && Number.isFinite(Number(seedParam)) ? Number(seedParam) : Date.now();
 
-// ?fullPaint starts every battle with full paint bottles, so mixing and rainbow can be tested quickly.
-const fullPaint = new URLSearchParams(window.location.search).has('fullPaint');
+// A stage number from 1 to 3, defaulting to 1 when the option has no usable value.
+const stageParam = (name: string) => Math.min(3, Math.max(1, Math.round(Number(params.get(name))) || 1));
+const mode: SessionMode = params.has('boss')
+  ? { kind: 'boss', stage: stageParam('boss') }
+  : params.has('battle')
+    ? { kind: 'battle', stage: stageParam('battle') }
+    : { kind: 'run' };
 
 const app = document.getElementById('app');
-if (app) startSession(app, seed, { fullPaint });
+if (app) startSession(app, seed, { fullPaint: params.has('fullPaint'), mode, testing: params.has('testing') });

@@ -2,17 +2,26 @@ import { createBattle, takeTurn, type BattleEvent, type BattleState, type TurnRe
 import type { Cell } from '../game/board';
 import { mix, spend, useMix } from '../game/paint';
 import { createRng, type Rng } from '../game/rng';
-import { PAINT_MAX, SPEND_COST, type PaintColor } from '../game/rules';
+import { continueRun, createRun, updateBattle, type RunState } from '../game/run';
+import { PAINT_MAX, PLAYER_START_HP, POST_BOSS_HEAL, SPEND_COST, STAGES, type PaintColor } from '../game/rules';
 import { floatOverEnemy, floatOverPlayer } from './fx';
 import { attachInput } from './input';
 import { playMove } from './replay';
 import { renderBattle, type ViewOptions } from './view';
 
-// Holds the current battle, sends commands to game/, and plays the returned events.
-// The game state is the source of truth; this file never changes it directly.
+// Holds the current run (or a single test battle), sends commands to game/, and plays the
+// returned events. The game state is the source of truth; this file never changes it directly.
+
+// run: the full run. battle / boss: one regular battle or boss of a stage, for testing.
+export type SessionMode = { kind: 'run' } | { kind: 'battle' | 'boss'; stage: number };
+export interface SessionOptions {
+  fullPaint: boolean; // test setting: start with full paint bottles
+  mode: SessionMode;
+  testing: boolean; // test setting: show the weapon dropdown during a run
+}
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const enemyName = (id: number) => `Canvas ${id + 1}`;
 
 /** Plain-language summary of what happened, shown in the message line. */
@@ -51,19 +60,83 @@ function floatCommandDamage(events: BattleEvent[]): void {
   for (const [enemyId, amount] of totals) floatOverEnemy(enemyId, `-${amount}`, 'damage');
 }
 
-export function startSession(root: HTMLElement, seed: number, options: { fullPaint: boolean }): void {
+const FULL_PAINT = { red: PAINT_MAX, yellow: PAINT_MAX, blue: PAINT_MAX };
+
+export function startSession(root: HTMLElement, seed: number, options: SessionOptions): void {
   const rng: Rng = createRng(seed);
-  // Test setting: start with full paint so mixing can be tried without a long game.
-  const newBattle = (): BattleState => {
-    const battle = createBattle(rng);
-    return options.fullPaint ? { ...battle, paint: { red: PAINT_MAX, yellow: PAINT_MAX, blue: PAINT_MAX } } : battle;
-  };
-  let state: BattleState = newBattle();
-  let message = 'Swipe a bottle to match three. White bottles hurt enemies; paint can be spent or mixed.';
+  const { mode } = options;
+
+  let run: RunState | null = null; // only in run mode
+  let state: BattleState; // the battle being played (in run mode, the same as run.battle)
+  let message = '';
   let busy = false;
 
+  /** Starts a new run, or a new single battle in a test mode. */
+  const begin = () => {
+    if (mode.kind === 'run') {
+      run = createRun(rng);
+      if (options.fullPaint) run = { ...run, battle: { ...run.battle, paint: { ...FULL_PAINT } } };
+      state = run.battle;
+      message = 'Stage 1: battle. Swipe a bottle to match three. White bottles hurt enemies; paint can be spent or mixed.';
+    } else {
+      const stage = STAGES[mode.stage - 1]!;
+      const enemies = mode.kind === 'boss' ? [stage.boss] : stage.battle;
+      state = createBattle(rng, { enemies, paint: options.fullPaint ? FULL_PAINT : undefined });
+      message = `Test ${mode.kind}, stage ${mode.stage}. Swipe a bottle to match three.`;
+    }
+  };
+
+  /** Records a new battle state, and in a run lets the run notice a win or loss. */
+  const setBattle = (next: BattleState) => {
+    state = next;
+    if (run) run = updateBattle(run, next);
+  };
+
+  // Options that stay the same for every frame of a battle, including the replay frames.
+  const baseView = (): Partial<ViewOptions> => ({
+    progress: run ? { stage: run.stage, encounter: run.encounter, stages: STAGES.length } : undefined,
+    bossFight: run ? run.encounter === 'boss' : mode.kind === 'boss',
+    testControls: options.testing || mode.kind !== 'run',
+    restartLabel: run ? 'New run' : 'Restart',
+  });
+
+  /** The screen over the game between battles, at the end of a run, or after a test battle. */
+  const overlay = (): ViewOptions['overlay'] => {
+    if (!run) {
+      if (state.status === 'playing') return undefined;
+      return { title: state.status === 'won' ? 'You won!' : 'You lost', lines: [], button: 'Play again', action: 'restart' };
+    }
+    if (run.phase === 'won') {
+      return { title: 'Run won!', lines: ['You beat all three bosses.'], button: 'New run', action: 'restart' };
+    }
+    if (run.phase === 'lost') {
+      return {
+        title: 'Run lost',
+        lines: [`You fell in stage ${run.stage + 1} (${run.encounter}).`],
+        button: 'New run',
+        action: 'restart',
+      };
+    }
+    if (run.phase === 'cleared') {
+      const afterBoss = run.encounter === 'boss';
+      const paint = state.paint;
+      const lines = [
+        `HP ${state.playerHp}/${PLAYER_START_HP}`,
+        `Paint kept: R ${paint.red}, Y ${paint.yellow}, B ${paint.blue}`,
+        afterBoss ? `You heal ${POST_BOSS_HEAL} HP.` : 'No healing between battles.',
+        afterBoss ? `Next: stage ${run.stage + 2} battle.` : `Next: stage ${run.stage + 1} boss.`,
+      ];
+      // A held mix is discarded when the battle ends, so say so rather than lose it silently.
+      if (state.heldMix) lines.push(`Your ${state.heldMix} mix was not used and will be lost.`);
+      return { title: afterBoss ? 'Boss defeated!' : 'Battle cleared!', lines, button: 'Continue', action: 'continue' };
+    }
+    return undefined;
+  };
+
   const draw = (extra: Partial<ViewOptions> = {}) =>
-    renderBattle(root, state, { message, messageIsLock: state.heldMix !== null, ...extra });
+    renderBattle(root, state, {
+      message, messageIsLock: state.heldMix !== null, ...baseView(), overlay: overlay(), ...extra,
+    });
 
   /** Applies a command that is not a turn (spend, mix, use mix). */
   const applyPaint = (result: TurnResult, rejectedMessage: string) => {
@@ -72,7 +145,7 @@ export function startSession(root: HTMLElement, seed: number, options: { fullPai
       draw();
       return;
     }
-    state = result.state;
+    setBattle(result.state);
     message = describe(result.events);
     draw();
     floatCommandDamage(result.events);
@@ -91,8 +164,8 @@ export function startSession(root: HTMLElement, seed: number, options: { fullPai
         return;
       }
       busy = true;
-      if (!reducedMotion()) await playMove(root, state, a, b, result, message);
-      state = result.state;
+      if (!reducedMotion()) await playMove(root, state, a, b, result, message, baseView());
+      setBattle(result.state);
       message = describe(result.events);
       draw(attackEffects(result.events));
       if (!reducedMotion()) {
@@ -123,16 +196,28 @@ export function startSession(root: HTMLElement, seed: number, options: { fullPai
 
     setWeapon(weapon) {
       state = { ...state, weapon };
+      if (run) run = { ...run, battle: state };
       message = `Weapon: ${weapon}.`;
       draw();
     },
 
+    continueRun() {
+      if (!run || run.phase !== 'cleared') return;
+      const hpBefore = state.playerHp;
+      run = continueRun(run, rng);
+      state = run.battle;
+      const healed = state.playerHp - hpBefore;
+      const where = `Stage ${run.stage + 1}: ${run.encounter}.`;
+      message = healed > 0 ? `${where} Healed ${healed} HP.` : where;
+      draw();
+    },
+
     restart() {
-      state = newBattle();
-      message = 'New battle. Swipe a bottle to match three.';
+      begin();
       draw();
     },
   });
 
+  begin();
   draw();
 }

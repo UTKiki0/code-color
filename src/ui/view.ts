@@ -14,6 +14,13 @@ export interface ViewOptions {
   speed?: number; // 1 = normal; smaller makes this frame's animations shorter
   attackedEnemies?: number[];
   playerHit?: boolean;
+  // Run display. These stay the same for every frame of a battle, so replay frames repeat them.
+  progress?: { stage: number; encounter: 'battle' | 'boss'; stages: number };
+  bossFight?: boolean; // one large boss card instead of three enemy cards
+  testControls?: boolean; // show the weapon dropdown (a test setting)
+  restartLabel?: string;
+  // A screen over the game: between battles, run won or lost, or battle won or lost.
+  overlay?: { title: string; lines: string[]; button: string; action: 'continue' | 'restart' };
 }
 
 const WEAPONS: { id: Weapon; label: string }[] = [
@@ -42,12 +49,13 @@ export function shape(type: Bottle | MixColor): HTMLElement {
 }
 
 function enemyCard(enemy: Enemy, view: ViewOptions): HTMLElement {
-  const card = el('div', `enemy${view.attackedEnemies?.includes(enemy.id) ? ' attack' : ''}`, {
+  const name = view.bossFight ? 'Boss' : `Canvas ${enemy.id + 1}`;
+  const card = el('div', `enemy${view.bossFight ? ' boss' : ''}${view.attackedEnemies?.includes(enemy.id) ? ' attack' : ''}`, {
     'data-enemy-id': String(enemy.id),
     role: 'group',
-    'aria-label': `Canvas ${enemy.id + 1}: ${Math.max(0, enemy.hp)} of ${enemy.maxHp} HP, attacks in ${enemy.countdown} turns`,
+    'aria-label': `${name}: ${Math.max(0, enemy.hp)} of ${enemy.maxHp} HP, attacks in ${enemy.countdown} turns`,
   });
-  card.append(el('h2', '', {}, `Canvas ${enemy.id + 1}`));
+  card.append(el('h2', '', {}, name));
   const bar = el('div', 'bar');
   const hp = Math.max(0, enemy.hp); // enemies can be shown below zero HP while a move is replayed
   bar.append(el('div', 'fill', { style: `width:${(hp / enemy.maxHp) * 100}%` }));
@@ -103,6 +111,23 @@ function palette(state: BattleState): HTMLElement {
   return root;
 }
 
+/** The run's position: six steps (a battle and a boss in each of three stages). */
+function progressStrip(p: NonNullable<ViewOptions['progress']>): HTMLElement {
+  const current = p.stage * 2 + (p.encounter === 'boss' ? 1 : 0);
+  const kind = p.encounter === 'boss' ? 'Boss' : 'Battle';
+  const strip = el('div', 'progress', { role: 'img', 'aria-label': `Stage ${p.stage + 1} of ${p.stages}: ${kind}` });
+  strip.append(el('span', 'progress-label', {}, `Stage ${p.stage + 1}/${p.stages}: ${kind}`));
+  const steps = el('div', 'steps', { 'aria-hidden': 'true' });
+  for (let i = 0; i < p.stages * 2; i++) {
+    const boss = i % 2 === 1;
+    // Done steps are filled, the current step is outlined and bold, and bosses use a star:
+    // position is not shown by color alone.
+    steps.append(el('span', `step${boss ? ' boss' : ''}${i < current ? ' done' : ''}${i === current ? ' current' : ''}`, {}, boss ? '\u2605' : '\u25CF'));
+  }
+  strip.append(steps);
+  return strip;
+}
+
 /** Draws the whole battle into `root`, replacing what was there. */
 export function renderBattle(root: HTMLElement, state: BattleState, view: ViewOptions): void {
   const game = el('main', 'game');
@@ -118,11 +143,12 @@ export function renderBattle(root: HTMLElement, state: BattleState, view: ViewOp
     if (w.id === state.weapon) option.selected = true;
     select.append(option);
   }
-  controls.append(select, el('button', '', { 'data-restart': '' }, 'Restart'));
+  if (view.testControls) controls.append(select);
+  controls.append(el('button', '', { 'data-restart': '' }, view.restartLabel ?? 'Restart'));
   top.append(title, controls);
 
-  const enemies = el('section', 'enemies', { 'aria-label': 'Enemies' });
-  for (let id = 0; id < 3; id++) {
+  const enemies = el('section', `enemies${view.bossFight ? ' boss-fight' : ''}`, { 'aria-label': 'Enemies' });
+  for (let id = 0; id < (view.bossFight ? 1 : 3); id++) {
     const enemy = state.enemies.find((e) => e.id === id);
     enemies.append(enemy ? enemyCard(enemy, view) : el('div', 'enemy empty', {}, 'Defeated'));
   }
@@ -136,14 +162,15 @@ export function renderBattle(root: HTMLElement, state: BattleState, view: ViewOp
 
   const message = el('div', `message${view.messageIsLock ? ' lock' : ''}`, { role: 'status', 'aria-live': 'polite' }, view.message);
 
-  game.append(top, enemies, player, palette(state), message, board(state, view));
+  game.append(top);
+  if (view.progress) game.append(progressStrip(view.progress));
+  game.append(enemies, player, palette(state), message, board(state, view));
 
-  if (state.status !== 'playing') {
-    const overlay = el('div', 'overlay');
-    overlay.append(
-      el('h2', '', {}, state.status === 'won' ? 'You won!' : 'You lost'),
-      el('button', '', { 'data-restart': '' }, 'Play again'),
-    );
+  if (view.overlay) {
+    const overlay = el('div', 'overlay', { role: 'dialog', 'aria-label': view.overlay.title });
+    overlay.append(el('h2', '', {}, view.overlay.title));
+    for (const line of view.overlay.lines) overlay.append(el('p', '', {}, line));
+    overlay.append(el('button', '', { [view.overlay.action === 'continue' ? 'data-continue' : 'data-restart']: '' }, view.overlay.button));
     game.append(overlay);
   }
   root.replaceChildren(game);

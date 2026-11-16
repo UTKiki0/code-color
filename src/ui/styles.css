@@ -154,3 +154,15 @@ button { cursor: pointer; font-weight: 700; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition: none !important; }
 }
+
+/* ---- Run progress, boss card, and overlay text ---- */
+.progress { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--panel); border: 2px solid var(--ink); border-radius: 10px; padding: 6px 10px; font-weight: 700; font-size: .85rem; }
+.steps { display: flex; gap: 6px; font-size: .9rem; }
+.step { opacity: .35; }
+.step.done { opacity: 1; color: var(--ink); }
+.step.current { opacity: 1; color: var(--accent); font-size: 1.15rem; transform: translateY(-1px); text-decoration: underline; }
+.enemies.boss-fight { grid-template-columns: 1fr; }
+.enemy.boss { min-height: 120px; padding: 12px; border-width: 3px; border-color: var(--accent); background: #fff7ed; font-size: 1rem; }
+.enemy.boss h2 { font-size: 1.2rem; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); }
+.enemy.boss .bar { height: 14px; }
+.overlay p { margin: 0; max-width: 28ch; justify-self: center; }
