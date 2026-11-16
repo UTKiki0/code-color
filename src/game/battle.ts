@@ -146,12 +146,14 @@ export function takeTurn(state: BattleState, a: Cell, b: Cell, rng: Rng): TurnRe
         events.push({ type: 'paintGained', color, amount });
       }
     }
-    // Each match hits one random enemy (the roller hits all); every white bottle in it deals damage.
+    // Each match hits one random enemy, and every white bottle in it deals damage. The roller
+    // differs: it hits every living enemy, once per match whatever the match size.
     for (const match of groupMatches(event.cells, 'white')) {
       const targets = living();
       if (targets.length === 0) break;
-      const hit = state.weapon === 'roller' ? targets : [targets[Math.floor(rng() * targets.length)]!];
-      const amount = match.length * WHITE_DAMAGE[state.weapon];
+      const roller = state.weapon === 'roller';
+      const hit = roller ? targets : [targets[Math.floor(rng() * targets.length)]!];
+      const amount = roller ? WHITE_DAMAGE.roller : match.length * WHITE_DAMAGE[state.weapon];
       for (const target of hit) {
         target.hp -= amount;
         events.push({ type: 'enemyDamaged', enemyId: target.id, amount, source: 'white', cells: match });

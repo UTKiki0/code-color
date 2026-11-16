@@ -71,7 +71,7 @@ The first playable milestone remains one battle demonstrating bottle matching, c
 **Weapons** (Developer-approved 2026-11-16; effects are starting values)
 - **Paintball gun:** white bottles deal more damage on a match: 2 per bottle instead of 1 (provisional number; the Developer set the effect, not the amount). The first character starts with it. The base rules above (1 white damage) apply when another weapon is equipped.
 - **Brush:** a direct paint spend lasts longer. For example, red burn lasts 5 turns instead of 3. Exact scope of the effect is provisional.
-- **Roller:** white matches hit all enemies instead of one random enemy.
+- **Roller:** each white match deals 1 damage to every living enemy, however many bottles the match has (Developer balance change, 2026-11-16: per-bottle damage to all enemies felt too strong).
 - The other two characters start with the brush and the roller. Which weapon goes with which character is deferred to Phase 4.
 - A run has three boss fights; beating the final one wins the run. After beating a boss fight, the player chooses a new weapon, which replaces the current one (one weapon at a time). Weapons reset between runs.
 
@@ -102,7 +102,7 @@ The first playable milestone remains one battle demonstrating bottle matching, c
 - Spending and mixing leave countdowns and burn unchanged.
 - Each paint effect and mix matches the rules above, and burn refresh does not stack.
 - A shuffle changes no battle state.
-- With the paintball gun, each white bottle cleared deals 2 damage; with the brush or roller equipped, 1 (the roller hitting all enemies).
+- With the paintball gun, each white bottle cleared deals 2 damage; with the brush equipped, 1; with the roller equipped, 1 per match to every living enemy, whatever the match size.
 - While a mix is held, board swipes are rejected. Using the mix unlocks the board.
 - A turn resolves in the order given above. An enemy killed by burn does not attack.
 - An enemy attacks at countdown 0, and the player can win, lose, and restart.

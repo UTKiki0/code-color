@@ -23,9 +23,10 @@ export const PAINT_MAX = 9;
 
 export type Weapon = 'paintballGun' | 'brush' | 'roller';
 
-// Damage dealt by each white bottle cleared, by equipped weapon.
+// White damage by equipped weapon. For the paintball gun and brush it is dealt per white
+// bottle in a match, to one random enemy. For the roller it is dealt once per match, however
+// many bottles the match has, to every living enemy (it hit too hard when counted per bottle).
 export const WHITE_DAMAGE: Record<Weapon, number> = { paintballGun: 2, brush: 1, roller: 1 };
-// The roller's white matches hit every living enemy instead of one random enemy.
 
 export const PLAYER_START_HP = 20;
 export const ENEMY_ATTACK_DAMAGE = 3;

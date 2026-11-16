@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { takeTurn } from '../src/game/battle';
+import { findMatches } from '../src/game/board';
 import { mix, spend, useMix } from '../src/game/paint';
 import { createRng } from '../src/game/rng';
 import { PAINT_MAX, RAINBOW_DAMAGE, type Weapon } from '../src/game/rules';
@@ -218,12 +219,25 @@ describe('rainbow', () => {
 });
 
 describe('roller', () => {
-  it('white matches hit every living enemy for each bottle in the match', () => {
-    const before = battleOn(WHITE_BOARD, [enemy(0, { hp: 20 }), enemy(1, { hp: 20 })], { weapon: 'roller' });
+  const rollerHits = (board: ReturnType<typeof withEdits>) => {
+    const before = battleOn(board, [enemy(0, { hp: 20 }), enemy(1, { hp: 20 })], { weapon: 'roller' });
     const result = takeTurn(before, ...SWAP, cycleRng([0.4, 0.7, 0.9]));
-    const hits = result.events.filter((e) => e.type === 'enemyDamaged');
+    return result.events.filter((e) => e.type === 'enemyDamaged');
+  };
+
+  it('a white match deals 1 damage to every living enemy, not per bottle', () => {
+    const hits = rollerHits(WHITE_BOARD); // a 3-bottle match
     expect(hits).toHaveLength(2);
-    expect(hits.every((e) => e.type === 'enemyDamaged' && e.amount === 3)).toBe(true);
+    expect(hits.every((e) => e.type === 'enemyDamaged' && e.amount === 1)).toBe(true);
+  });
+
+  it('still deals 1 for a longer match', () => {
+    // Swapping (2,2) down makes four whites in row 3, columns 0-3.
+    const board = withEdits({ '3,0': 'w', '3,1': 'w', '3,2': 'b', '3,3': 'w', '2,2': 'w' });
+    expect(findMatches(board)).toEqual([]);
+    const hits = rollerHits(board);
+    expect(hits).toHaveLength(2);
+    expect(hits.every((e) => e.type === 'enemyDamaged' && e.amount === 1)).toBe(true);
   });
 });
 
