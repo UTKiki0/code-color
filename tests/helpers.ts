@@ -38,7 +38,7 @@ export const cycleRng = (values: number[]): Rng => {
 };
 
 export const enemy = (id: number, over: Partial<Enemy> = {}): Enemy => ({
-  id, hp: 10, startCountdown: 4, countdown: 4, burn: null, ...over,
+  id, hp: 10, maxHp: 10, startCountdown: 4, countdown: 4, burn: null, ...over,
 });
 
 // A battle on a crafted board with the given enemies.

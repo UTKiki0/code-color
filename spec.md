@@ -93,6 +93,8 @@ The first playable milestone remains one battle demonstrating bottle matching, c
 - With the browser's reduced-motion setting on, animations are shortened or removed, and nothing flashes.
 - Deferred to Phase 5: keyboard operation (arrow-key selection, Enter to swap, spend, and mix). Input handling stays separate from game logic so this can be added later.
 
+**Test settings** (for the Developer's testing, not player features): a weapon dropdown above the board; `?seed=N` in the address for a repeatable battle; `?fullPaint` to start with full paint bottles so mixing and rainbow can be tried quickly.
+
 **Acceptance checks (all pending implementation and verification)**
 - A swap that creates no match reverts and changes no countdown, burn, or paint.
 - A move with a cascade collects the correct paint and white damage, and advances countdowns and burn exactly once.

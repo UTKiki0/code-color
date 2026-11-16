@@ -13,6 +13,7 @@ export interface Burn {
 export interface Enemy {
   id: number;
   hp: number;
+  maxHp: number; // for HP bars
   startCountdown: number; // the countdown value an attack resets to
   countdown: number; // turns until this enemy attacks
   burn: Burn | null;
@@ -60,6 +61,7 @@ export function createBattle(rng: Rng): BattleState {
     enemies: FIRST_BATTLE_ENEMIES.map((e, id) => ({
       id,
       hp: e.hp,
+      maxHp: e.hp,
       startCountdown: e.countdown,
       countdown: e.countdown,
       burn: null,

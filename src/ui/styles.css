@@ -1,0 +1,129 @@
+/* Code: Color - placeholder visuals (flat colors and CSS shapes).
+   Colors and sizes are variables defined once here. */
+:root {
+  --bg: #fdf3e4;
+  --panel: #ffffff;
+  --ink: #1f2937;
+  --muted: #4b5563;
+  --line: #d6c9b4;
+  --accent: #c2410c;
+
+  /* Bottle colors. White text on these meets 4.5:1; yellow and white use dark text. */
+  --red: #c62828;
+  --yellow: #f5c518;
+  --blue: #1d4ed8;
+  --white: #f8fafc;
+  --green: #1f7a4d;
+  --purple: #7e3fb8;
+  --orange: #b45309;
+
+  --gap: 4px;
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: ui-rounded, 'Trebuchet MS', system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app { display: flex; justify-content: center; padding: 12px 16px 32px; }
+.game { width: 100%; max-width: clamp(320px, calc(100dvh - 450px), 440px); display: flex; flex-direction: column; gap: 12px; position: relative; }
+
+/* ---- Top bar ---- */
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.topbar h1 { margin: 0; font-size: 1.25rem; }
+.topbar .code { letter-spacing: .12em; text-transform: uppercase; font-family: ui-monospace, monospace; font-size: .8em; }
+.topbar .color { color: var(--accent); }
+.controls { display: flex; gap: 8px; align-items: center; }
+select, button { font: inherit; min-height: 44px; padding: 0 12px; border-radius: 10px; border: 2px solid var(--ink); background: var(--panel); color: var(--ink); }
+button { cursor: pointer; font-weight: 700; }
+
+/* ---- Enemies ---- */
+.enemies { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.enemy { background: var(--panel); border: 2px solid var(--ink); border-radius: var(--radius); padding: 8px; min-height: 96px; position: relative; font-size: .85rem; }
+.enemy h2 { margin: 0 0 4px; font-size: .9rem; }
+.enemy .countdown { font-weight: 800; font-size: 1.05rem; }
+.enemy .status { color: var(--muted); min-height: 1.2em; }
+.enemy.attack { animation: shake .4s; background: #fee2e2; }
+.enemy.empty { border-style: dashed; opacity: .55; display: grid; place-items: center; }
+
+.bar { background: #e5e7eb; border-radius: 6px; height: 10px; overflow: hidden; border: 1px solid var(--ink); }
+.bar > .fill { height: 100%; background: #16a34a; transition: width .25s; }
+.bar.hp > .fill { background: #dc2626; }
+.float { position: absolute; right: 8px; top: 4px; font-weight: 900; color: #b91c1c; animation: floatUp .9s forwards; pointer-events: none; }
+
+/* ---- Player ---- */
+.player { background: var(--panel); border: 2px solid var(--ink); border-radius: var(--radius); padding: 8px 12px; }
+.player.hit { animation: shake .4s; background: #fee2e2; }
+.player .row { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 4px; }
+
+/* ---- Paint storage and held mix ---- */
+.palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.store, .held, .held-empty {
+  background: var(--panel); border: 2px solid var(--ink); border-radius: var(--radius);
+  min-height: 84px; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  touch-action: none; user-select: none; -webkit-user-select: none; font-size: .8rem; font-weight: 700; text-align: center;
+}
+/* Dim only the shape, so the text label keeps its contrast. */
+.store[data-count="0"] .shape { opacity: .45; }
+.store.full { border-color: var(--accent); box-shadow: 0 0 0 3px #fed7aa; }
+.held { border-color: var(--accent); background: #fff7ed; cursor: grab; }
+.held-empty { border-style: dashed; color: var(--muted); font-weight: 600; }
+.store .shape, .held .shape { width: 36px; height: 36px; }
+.meter { width: 80%; height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; }
+.meter > i { display: block; height: 100%; background: var(--ink); }
+
+/* ---- Message line ---- */
+.message { min-height: 2.6em; background: var(--panel); border-radius: 10px; padding: 8px 12px; border: 2px solid var(--line); color: var(--ink); font-size: .9rem; }
+.message.lock { border-color: var(--accent); background: #fff7ed; }
+
+/* ---- Board ---- */
+.board {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--gap); width: 100%;
+  background: var(--panel); border: 2px solid var(--ink); border-radius: var(--radius); padding: 6px;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.board.locked { opacity: .55; }
+.cell { aspect-ratio: 1; min-width: 0; display: grid; place-items: center; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .35)); }
+.cell.shake { animation: shake .35s; }
+
+/* ---- Bottle shapes: each type has its own shape as well as its color ---- */
+.shape { width: 82%; height: 82%; background: var(--c); }
+.bottle-red { --c: var(--red); }
+.bottle-yellow { --c: var(--yellow); }
+.bottle-blue { --c: var(--blue); }
+.bottle-white { --c: var(--white); }
+.bottle-green { --c: var(--green); }
+.bottle-purple { --c: var(--purple); }
+.bottle-orange { --c: var(--orange); }
+.bottle-red .shape { border-radius: 50%; }
+.bottle-yellow .shape { border-radius: 18%; }
+.bottle-blue .shape { clip-path: polygon(50% 6%, 96% 92%, 4% 92%); }
+.bottle-white .shape { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.bottle-empty .shape { background: transparent; border: 2px dashed #94a3b8; border-radius: 50%; opacity: .7; }
+.bottle-green .shape, .bottle-purple .shape, .bottle-orange .shape { clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%); }
+
+/* ---- Dragging ---- */
+#app.dragging [data-enemy-id], #app.dragging [data-paint] { outline: 3px dashed var(--accent); outline-offset: 2px; }
+.ghost { position: fixed; width: 56px; height: 56px; transform: translate(-50%, -50%); pointer-events: none; z-index: 20; opacity: .9; }
+
+/* ---- Overlay ---- */
+.overlay { position: absolute; inset: 0; background: rgba(253, 243, 228, .92); display: grid; place-content: center; gap: 12px; text-align: center; border-radius: var(--radius); z-index: 5; }
+.overlay h2 { margin: 0; font-size: 1.8rem; }
+
+/* ---- Animation (turned off by the reduced-motion rule below) ---- */
+.cell.pop .shape { animation: pop .25s forwards; }
+.drop .cell .shape { animation: drop .3s; }
+@keyframes pop { to { transform: scale(0); opacity: 0; } }
+@keyframes drop { from { transform: translateY(-60%); opacity: 0; } }
+@keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+@keyframes floatUp { to { transform: translateY(-18px); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition: none !important; }
+}
