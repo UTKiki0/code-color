@@ -3,8 +3,9 @@ import type { Cell } from '../game/board';
 import { mix, spend, useMix } from '../game/paint';
 import { createRng, type Rng } from '../game/rng';
 import { PAINT_MAX, SPEND_COST, type PaintColor } from '../game/rules';
-import { computeFalls } from './falls';
+import { floatOverEnemy, floatOverPlayer } from './fx';
 import { attachInput } from './input';
+import { playMove } from './replay';
 import { renderBattle, type ViewOptions } from './view';
 
 // Holds the current battle, sends commands to game/, and plays the returned events.
@@ -12,17 +13,13 @@ import { renderBattle, type ViewOptions } from './view';
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const POP_MS = 220; // how long matched bottles shrink before the board falls
-const FALL_BASE_MS = 200; // wait after a fall starts; longer falls wait a little more
-const FALL_PER_ROW_MS = 70;
-
 const enemyName = (id: number) => `Canvas ${id + 1}`;
 
 /** Plain-language summary of what happened, shown in the message line. */
 function describe(events: BattleEvent[]): string {
   const parts: string[] = [];
   const steps = events.filter((e) => e.type === 'bottlesCleared').length;
-  if (steps > 1) parts.push(`Cascade x${steps}!`);
+  if (steps > 1) parts.push(`Combo x${steps}!`);
   for (const e of events) {
     if (e.type === 'paintGained' && e.amount > 0) parts.push(`+${e.amount} ${e.color}`);
     else if (e.type === 'paintSpent') parts.push(`Spent ${e.amount} ${e.color}`);
@@ -36,18 +33,22 @@ function describe(events: BattleEvent[]): string {
   return parts.join('. ') || 'Done.';
 }
 
-/** Damage numbers and attack flashes to show with the new state. */
-function effectsFrom(events: BattleEvent[]): Partial<ViewOptions> {
+/** Attack flashes to show with the final state of a move. */
+function attackEffects(events: BattleEvent[]): Partial<ViewOptions> {
+  const attacks = events.filter((e) => e.type === 'enemyAttacked');
+  return {
+    attackedEnemies: attacks.map((e) => (e.type === 'enemyAttacked' ? e.enemyId : -1)),
+    playerHit: attacks.length > 0,
+  };
+}
+
+/** Numbers for damage that is not part of a match: spends, mixes, rainbow. */
+function floatCommandDamage(events: BattleEvent[]): void {
   const totals = new Map<number, number>();
   for (const e of events) {
     if (e.type === 'enemyDamaged') totals.set(e.enemyId, (totals.get(e.enemyId) ?? 0) + e.amount);
   }
-  const attacks = events.filter((e) => e.type === 'enemyAttacked');
-  return {
-    floats: [...totals].map(([enemyId, amount]) => ({ enemyId, text: `-${amount}` })),
-    attackedEnemies: attacks.map((e) => (e.type === 'enemyAttacked' ? e.enemyId : -1)),
-    playerHit: attacks.length > 0,
-  };
+  for (const [enemyId, amount] of totals) floatOverEnemy(enemyId, `-${amount}`, 'damage');
 }
 
 export function startSession(root: HTMLElement, seed: number, options: { fullPaint: boolean }): void {
@@ -73,27 +74,8 @@ export function startSession(root: HTMLElement, seed: number, options: { fullPai
     }
     state = result.state;
     message = describe(result.events);
-    draw(effectsFrom(result.events));
-  };
-
-  /**
-   * Plays a move step by step: the swap, then for each cascade step the matched
-   * bottles pop and the rest fall into place with new bottles dropping in.
-   */
-  const playCascade = async (a: Cell, b: Cell, result: TurnResult) => {
-    let shown = state.board.map((r) => [...r]);
-    shown[a.row]![a.col] = state.board[b.row]![b.col]!;
-    shown[b.row]![b.col] = state.board[a.row]![a.col]!;
-    for (const event of result.events) {
-      if (event.type !== 'bottlesCleared') continue;
-      const stepMessage = event.step > 1 ? `Cascade x${event.step}!` : message;
-      renderBattle(root, { ...state, board: shown }, { message: stepMessage, popCells: event.cells });
-      await sleep(POP_MS);
-      const falls = computeFalls(event.cells);
-      shown = event.boardAfter;
-      renderBattle(root, { ...state, board: shown }, { message: stepMessage, falls });
-      await sleep(FALL_BASE_MS + Math.max(0, ...falls.values()) * FALL_PER_ROW_MS);
-    }
+    draw();
+    floatCommandDamage(result.events);
   };
 
   attachInput(root, {
@@ -109,10 +91,15 @@ export function startSession(root: HTMLElement, seed: number, options: { fullPai
         return;
       }
       busy = true;
-      if (!reducedMotion()) await playCascade(a, b, result);
+      if (!reducedMotion()) await playMove(root, state, a, b, result, message);
       state = result.state;
       message = describe(result.events);
-      draw(effectsFrom(result.events));
+      draw(attackEffects(result.events));
+      if (!reducedMotion()) {
+        const hits = result.events.filter((e) => e.type === 'enemyAttacked');
+        const total = hits.reduce((sum, e) => sum + (e.type === 'enemyAttacked' ? e.damage : 0), 0);
+        if (total > 0) floatOverPlayer(`-${total}`, 'damage');
+      }
       busy = false;
     },
 

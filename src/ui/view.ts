@@ -11,7 +11,6 @@ export interface ViewOptions {
   popCells?: Cell[]; // bottles to show shrinking away
   falls?: Map<string, number>; // rows each bottle falls, keyed by its new "row,col"
   shake?: Cell[]; // cells to shake (rejected swap)
-  floats?: { enemyId: number; text: string }[]; // damage numbers
   attackedEnemies?: number[];
   playerHit?: boolean;
 }
@@ -45,17 +44,15 @@ function enemyCard(enemy: Enemy, view: ViewOptions): HTMLElement {
   const card = el('div', `enemy${view.attackedEnemies?.includes(enemy.id) ? ' attack' : ''}`, {
     'data-enemy-id': String(enemy.id),
     role: 'group',
-    'aria-label': `Canvas ${enemy.id + 1}: ${enemy.hp} of ${enemy.maxHp} HP, attacks in ${enemy.countdown} turns`,
+    'aria-label': `Canvas ${enemy.id + 1}: ${Math.max(0, enemy.hp)} of ${enemy.maxHp} HP, attacks in ${enemy.countdown} turns`,
   });
   card.append(el('h2', '', {}, `Canvas ${enemy.id + 1}`));
   const bar = el('div', 'bar');
-  bar.append(el('div', 'fill', { style: `width:${(enemy.hp / enemy.maxHp) * 100}%` }));
-  card.append(bar, el('div', '', {}, `HP ${enemy.hp}/${enemy.maxHp}`));
+  const hp = Math.max(0, enemy.hp); // enemies can be shown below zero HP while a move is replayed
+  bar.append(el('div', 'fill', { style: `width:${(hp / enemy.maxHp) * 100}%` }));
+  card.append(bar, el('div', '', {}, `HP ${hp}/${enemy.maxHp}`));
   card.append(el('div', 'countdown', {}, `Attacks in ${enemy.countdown}`));
   card.append(el('div', 'status', {}, enemy.burn ? `Burn ${enemy.burn.damage} x ${enemy.burn.turnsLeft}` : ''));
-  for (const f of view.floats ?? []) {
-    if (f.enemyId === enemy.id) card.append(el('span', 'float', {}, f.text));
-  }
   return card;
 }
 

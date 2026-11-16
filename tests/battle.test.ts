@@ -96,6 +96,16 @@ describe('white damage', () => {
   });
 });
 
+describe('white damage events', () => {
+  it('say which bottles made the match, so the UI can show the damage over it', () => {
+    const result = takeTurn(battleOn(WHITE_BOARD, [enemy(0, { hp: 20 })]), ...DOWN, refill());
+    const hit = result.events.find((e) => e.type === 'enemyDamaged');
+    if (hit?.type !== 'enemyDamaged') throw new Error('expected damage');
+    const cells = (hit.cells ?? []).map((c) => `${c.row},${c.col}`).sort();
+    expect(cells).toEqual(['3,0', '3,1', '3,2']);
+  });
+});
+
 describe('turn timing', () => {
   it('advances every countdown exactly once, even through a cascade', () => {
     // The cascade fixture from the board tests: a red match, then a blue match as bottles fall.

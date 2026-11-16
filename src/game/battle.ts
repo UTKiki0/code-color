@@ -33,7 +33,13 @@ export interface BattleState {
 export type BattleEvent =
   | BoardEvent
   | { type: 'paintGained'; color: PaintColor; amount: number } // amount actually stored, after the cap
-  | { type: 'enemyDamaged'; enemyId: number; amount: number; source: 'white' | 'burn' | 'paint' | 'rainbow' }
+  | {
+      type: 'enemyDamaged';
+      enemyId: number;
+      amount: number;
+      source: 'white' | 'burn' | 'paint' | 'rainbow';
+      cells?: Cell[]; // for white damage: the bottles of the match that dealt it
+    }
   | { type: 'effectApplied'; enemyId: number; effect: EffectName }
   | { type: 'paintSpent'; color: PaintColor; amount: number }
   | { type: 'mixed'; mix: MixColor }
@@ -148,7 +154,7 @@ export function takeTurn(state: BattleState, a: Cell, b: Cell, rng: Rng): TurnRe
       const amount = match.length * WHITE_DAMAGE[state.weapon];
       for (const target of hit) {
         target.hp -= amount;
-        events.push({ type: 'enemyDamaged', enemyId: target.id, amount, source: 'white' });
+        events.push({ type: 'enemyDamaged', enemyId: target.id, amount, source: 'white', cells: match });
       }
     }
   }

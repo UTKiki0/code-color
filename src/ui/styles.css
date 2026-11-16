@@ -55,7 +55,6 @@ button { cursor: pointer; font-weight: 700; }
 .bar { background: #e5e7eb; border-radius: 6px; height: 10px; overflow: hidden; border: 1px solid var(--ink); }
 .bar > .fill { height: 100%; background: #16a34a; transition: width .25s; }
 .bar.hp > .fill { background: #dc2626; }
-.float { position: absolute; right: 8px; top: 4px; font-weight: 900; color: #b91c1c; animation: floatUp .9s forwards; pointer-events: none; }
 
 /* ---- Player ---- */
 .player { background: var(--panel); border: 2px solid var(--ink); border-radius: var(--radius); padding: 8px 12px; }
@@ -113,6 +112,20 @@ button { cursor: pointer; font-weight: 700; }
 #app.dragging [data-enemy-id], #app.dragging [data-paint] { outline: 3px dashed var(--accent); outline-offset: 2px; }
 .ghost { position: fixed; width: 56px; height: 56px; transform: translate(-50%, -50%); pointer-events: none; z-index: 20; opacity: .9; }
 
+/* ---- Floating numbers and combo text (spawned by fx.ts) ---- */
+.fx {
+  position: absolute; z-index: 30; pointer-events: none; font-weight: 900; font-size: 1.35rem; white-space: nowrap;
+  color: var(--ink);
+  /* A white outline keeps the text readable over any bottle color. */
+  text-shadow: -2px 0 #fff, 2px 0 #fff, 0 -2px #fff, 0 2px #fff, -1px -1px #fff, 1px 1px #fff, -1px 1px #fff, 1px -1px #fff;
+  animation: fxRise 1.1s ease-out forwards;
+}
+.fx-damage { color: #b91c1c; }
+.fx-paint { color: var(--ink); }
+.fx-paint::before { content: ''; display: inline-block; width: .7em; height: .7em; border-radius: 50%; background: var(--c, var(--ink)); border: 2px solid var(--ink); margin-right: .25em; vertical-align: -.05em; }
+.fx-combo { color: var(--accent); font-size: 1.9rem; letter-spacing: .02em; }
+.fx-info { font-size: 1rem; }
+
 /* ---- Overlay ---- */
 .overlay { position: absolute; inset: 0; background: rgba(253, 243, 228, .92); display: grid; place-content: center; gap: 12px; text-align: center; border-radius: var(--radius); z-index: 5; }
 .overlay h2 { margin: 0; font-size: 1.8rem; }
@@ -130,7 +143,12 @@ button { cursor: pointer; font-weight: 700; }
   100% { transform: translateY(0); }
 }
 @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
-@keyframes floatUp { to { transform: translateY(-18px); opacity: 0; } }
+@keyframes fxRise {
+  0% { transform: translate(-50%, -30%) scale(.6); opacity: 0; }
+  15% { transform: translate(-50%, -60%) scale(1.15); opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: translate(-50%, -190%) scale(1); opacity: 0; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition: none !important; }
