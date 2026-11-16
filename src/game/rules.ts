@@ -21,10 +21,11 @@ export type PaintColor = 'red' | 'yellow' | 'blue';
 export const PAINT_COLORS: PaintColor[] = ['red', 'yellow', 'blue'];
 export const PAINT_MAX = 9;
 
-export type Weapon = 'paintballGun'; // brush and roller are added in a later checkpoint
+export type Weapon = 'paintballGun' | 'brush' | 'roller';
 
 // Damage dealt by each white bottle cleared, by equipped weapon.
-export const WHITE_DAMAGE: Record<Weapon, number> = { paintballGun: 2 };
+export const WHITE_DAMAGE: Record<Weapon, number> = { paintballGun: 2, brush: 1, roller: 1 };
+// The roller's white matches hit every living enemy instead of one random enemy.
 
 export const PLAYER_START_HP = 20;
 export const ENEMY_ATTACK_DAMAGE = 3;
@@ -35,3 +36,44 @@ export const FIRST_BATTLE_ENEMIES = [
   { hp: 10, countdown: 5 },
   { hp: 10, countdown: 6 },
 ];
+
+// --- Paint use (checkpoint 4) ---
+
+export const SPEND_COST = 3; // paint used by one direct spend on an enemy
+
+// An effect is data: damage now, countdown change, and/or a burn. One shared
+// function (effects.ts) applies any effect, so a new paint is a new entry here.
+export interface Effect {
+  damage?: number;
+  slow?: number; // turns added to the enemy's countdown
+  resetCountdown?: boolean;
+  burn?: { damage: number; turns: number }; // replaces any current burn
+}
+
+export const PAINT_EFFECTS: Record<PaintColor, Effect> = {
+  red: { burn: { damage: 1, turns: 3 } },
+  yellow: { damage: 2 },
+  blue: { slow: 1 },
+};
+// The brush makes a direct red spend burn longer. Mixes are unaffected for now.
+export const BRUSH_RED_BURN_TURNS = 5;
+
+export type MixColor = 'green' | 'purple' | 'orange';
+export const MIX_COLORS: MixColor[] = ['green', 'purple', 'orange'];
+export type EffectName = PaintColor | MixColor;
+
+// Which two paints make each mix. Each mix consumes PAINT_MAX of both.
+export const MIX_RECIPES: Record<MixColor, [PaintColor, PaintColor]> = {
+  green: ['blue', 'yellow'],
+  purple: ['red', 'blue'],
+  orange: ['red', 'yellow'],
+};
+
+export const MIX_EFFECTS: Record<MixColor, Effect> = {
+  green: { resetCountdown: true },
+  purple: { slow: 2, burn: { damage: 2, turns: 3 } },
+  orange: { burn: { damage: 3, turns: 3 } },
+};
+
+// Rainbow: a held mix dropped on the third paint's full bottle (which it consumes).
+export const RAINBOW_DAMAGE = 6; // to every enemy, before the random mix effect

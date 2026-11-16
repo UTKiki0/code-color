@@ -2,7 +2,7 @@ import { createBoard, swap, type Board, type BoardEvent, type Cell } from './boa
 import type { Rng } from './rng';
 import {
   ENEMY_ATTACK_DAMAGE, FIRST_BATTLE_ENEMIES, PAINT_COLORS, PAINT_MAX, PLAYER_START_HP,
-  WHITE_DAMAGE, type Bottle, type PaintColor, type Weapon,
+  WHITE_DAMAGE, type Bottle, type EffectName, type MixColor, type PaintColor, type Weapon,
 } from './rules';
 
 export interface Burn {
@@ -23,6 +23,7 @@ export interface BattleState {
   paint: Record<PaintColor, number>;
   playerHp: number;
   weapon: Weapon;
+  heldMix: MixColor | null; // a mix must be used before the board can be swiped
   enemies: Enemy[]; // living enemies only
   status: 'playing' | 'won' | 'lost';
 }
@@ -31,7 +32,12 @@ export interface BattleState {
 export type BattleEvent =
   | BoardEvent
   | { type: 'paintGained'; color: PaintColor; amount: number } // amount actually stored, after the cap
-  | { type: 'enemyDamaged'; enemyId: number; amount: number; source: 'white' | 'burn' }
+  | { type: 'enemyDamaged'; enemyId: number; amount: number; source: 'white' | 'burn' | 'paint' | 'rainbow' }
+  | { type: 'effectApplied'; enemyId: number; effect: EffectName }
+  | { type: 'paintSpent'; color: PaintColor; amount: number }
+  | { type: 'mixed'; mix: MixColor }
+  | { type: 'mixUsed'; mix: MixColor }
+  | { type: 'rainbow' }
   | { type: 'enemyDied'; enemyId: number }
   | { type: 'enemyAttacked'; enemyId: number; damage: number }
   | { type: 'won' }
@@ -50,6 +56,7 @@ export function createBattle(rng: Rng): BattleState {
     paint: { red: 0, yellow: 0, blue: 0 },
     playerHp: PLAYER_START_HP,
     weapon: 'paintballGun',
+    heldMix: null,
     enemies: FIRST_BATTLE_ENEMIES.map((e, id) => ({
       id,
       hp: e.hp,
@@ -87,13 +94,27 @@ function groupMatches(cells: (Cell & { bottle: Bottle })[], bottle: Bottle): Cel
   return groups;
 }
 
+/** Removes enemies with no HP left, reporting each death, and returns the survivors. */
+export function removeDeadEnemies(enemies: Enemy[], events: BattleEvent[]): Enemy[] {
+  for (const enemy of enemies.filter((e) => e.hp <= 0)) {
+    events.push({ type: 'enemyDied', enemyId: enemy.id });
+  }
+  return enemies.filter((e) => e.hp > 0);
+}
+
+/** Won when no enemies remain; lost when the player has no HP left. */
+export function statusFor(enemies: Enemy[], playerHp: number): BattleState['status'] {
+  if (enemies.length === 0) return 'won';
+  return playerHp === 0 ? 'lost' : 'playing';
+}
+
 /**
  * One player turn: a swap on the board followed by the resolution order in
  * spec.md. A rejected swap, or a finished battle, changes nothing.
  */
 export function takeTurn(state: BattleState, a: Cell, b: Cell, rng: Rng): TurnResult {
   const rejected: TurnResult = { ok: false, state, events: [] };
-  if (state.status !== 'playing') return rejected;
+  if (state.status !== 'playing' || state.heldMix) return rejected;
 
   const moved = swap(state.board, a, b, rng);
   if (!moved.ok) return rejected;
@@ -117,14 +138,16 @@ export function takeTurn(state: BattleState, a: Cell, b: Cell, rng: Rng): TurnRe
         events.push({ type: 'paintGained', color, amount });
       }
     }
-    // Each match picks one target; every white bottle in it deals damage to that enemy.
+    // Each match hits one random enemy (the roller hits all); every white bottle in it deals damage.
     for (const match of groupMatches(event.cells, 'white')) {
       const targets = living();
       if (targets.length === 0) break;
-      const target = targets[Math.floor(rng() * targets.length)]!;
+      const hit = state.weapon === 'roller' ? targets : [targets[Math.floor(rng() * targets.length)]!];
       const amount = match.length * WHITE_DAMAGE[state.weapon];
-      target.hp -= amount;
-      events.push({ type: 'enemyDamaged', enemyId: target.id, amount, source: 'white' });
+      for (const target of hit) {
+        target.hp -= amount;
+        events.push({ type: 'enemyDamaged', enemyId: target.id, amount, source: 'white' });
+      }
     }
   }
 
@@ -139,10 +162,7 @@ export function takeTurn(state: BattleState, a: Cell, b: Cell, rng: Rng): TurnRe
   }
 
   // 3. Dead enemies are removed, so they never attack.
-  for (const enemy of enemies.filter((e) => e.hp <= 0)) {
-    events.push({ type: 'enemyDied', enemyId: enemy.id });
-  }
-  enemies = living();
+  enemies = removeDeadEnemies(enemies, events);
 
   // 4. Remaining countdowns advance by one.
   for (const enemy of enemies) enemy.countdown -= 1;
@@ -156,9 +176,7 @@ export function takeTurn(state: BattleState, a: Cell, b: Cell, rng: Rng): TurnRe
   }
 
   // 6. Win and lose. With no enemies left nothing can have attacked this turn.
-  let status: BattleState['status'] = 'playing';
-  if (enemies.length === 0) status = 'won';
-  else if (playerHp === 0) status = 'lost';
+  const status = statusFor(enemies, playerHp);
   if (status !== 'playing') events.push({ type: status });
 
   return {

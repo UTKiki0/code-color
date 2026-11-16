@@ -1,21 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { createBattle, takeTurn, type BattleEvent, type BattleState, type Enemy } from '../src/game/battle';
+import { createBattle, takeTurn, type BattleEvent } from '../src/game/battle';
 import { findMatches, type Cell } from '../src/game/board';
 import { createRng } from '../src/game/rng';
 import { ENEMY_ATTACK_DAMAGE, FIRST_BATTLE_ENEMIES, PAINT_MAX, PLAYER_START_HP } from '../src/game/rules';
-import { cycleRng, withEdits } from './helpers';
+import { battleOn, cycleRng, enemy, withEdits } from './helpers';
 
 // Refill values (blue, white, empty) chosen so refills do not make new matches.
 const refill = () => cycleRng([0.4, 0.7, 0.9]);
-
-const enemy = (id: number, over: Partial<Enemy> = {}): Enemy => ({
-  id, hp: 10, startCountdown: 4, countdown: 4, burn: null, ...over,
-});
-
-// A battle on a crafted board with the given enemies.
-const battleOn = (board: BattleState['board'], enemies: Enemy[], over: Partial<BattleState> = {}): BattleState => ({
-  ...createBattle(createRng(1)), board, enemies, ...over,
-});
 
 // Crafted moves. Each swaps (2,2) with (3,2) to make a three-in-a-row in row 3, columns 0-2.
 const RED_BOARD = withEdits({ '3,0': 'r', '3,1': 'r', '2,2': 'r' });

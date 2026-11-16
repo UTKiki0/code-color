@@ -1,6 +1,7 @@
 import { BOARD_SIZE, type Bottle } from '../src/game/rules';
 import type { Board } from '../src/game/board';
-import type { Rng } from '../src/game/rng';
+import { createBattle, type BattleState, type Enemy } from '../src/game/battle';
+import { createRng, type Rng } from '../src/game/rng';
 
 const LETTERS: Record<string, Bottle> = {
   r: 'red', y: 'yellow', b: 'blue', w: 'white', e: 'empty',
@@ -35,5 +36,14 @@ export const cycleRng = (values: number[]): Rng => {
   let i = 0;
   return () => values[i++ % values.length]!;
 };
+
+export const enemy = (id: number, over: Partial<Enemy> = {}): Enemy => ({
+  id, hp: 10, startCountdown: 4, countdown: 4, burn: null, ...over,
+});
+
+// A battle on a crafted board with the given enemies.
+export const battleOn = (board: Board, enemies: Enemy[], over: Partial<BattleState> = {}): BattleState => ({
+  ...createBattle(createRng(1)), board, enemies, ...over,
+});
 
 export { BOARD_SIZE };

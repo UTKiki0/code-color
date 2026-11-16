@@ -57,6 +57,7 @@ The first playable milestone remains one battle demonstrating bottle matching, c
 - Yellow: 2 damage immediately.
 - Blue: the enemy's countdown increases by 1.
 - Burning again refreshes the duration; it does not stack.
+- Spending is allowed while a mix is held (Developer decision, 2026-11-16). The brush lengthens only the direct red burn for now; the Developer may widen it after playtesting.
 
 **Mixing** (drag a full storage bottle onto another full storage bottle; consumes 9 of each ingredient)
 - The mixed paint is held, shown over the storage bottles. The player then drags it onto an enemy to apply it, or onto the one remaining full paint bottle to make rainbow. Nothing is applied until the player drops it.
@@ -65,7 +66,7 @@ The first playable milestone remains one battle demonstrating bottle matching, c
 - Green (blue + yellow): resets the enemy's countdown to its start.
 - Purple (red + blue): countdown +2, then burn of 2 damage per turn for 3 turns.
 - Orange (red + yellow): burn of 3 damage per turn for 3 turns.
-- Rainbow (a held mix dropped onto the remaining full third color): 6 damage to all enemies, plus one random effect from green, purple, or orange, rolled separately for each enemy.
+- Rainbow (a held mix dropped onto the remaining full third color): 6 damage to all enemies, plus one random effect from green, purple, or orange, rolled separately for each enemy. The damage lands first, so enemies it kills get no random effect.
 
 **Weapons** (Developer-approved 2026-11-16; effects are starting values)
 - **Paintball gun:** white bottles deal more damage on a match: 2 per bottle instead of 1 (provisional number; the Developer set the effect, not the amount). The first character starts with it. The base rules above (1 white damage) apply when another weapon is equipped.
