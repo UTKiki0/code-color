@@ -93,6 +93,24 @@ The first playable milestone remains one battle demonstrating bottle matching, c
 - With the browser's reduced-motion setting on, animations are shortened or removed, and nothing flashes.
 - Deferred to Phase 5: keyboard operation (arrow-key selection, Enter to swap, spend, and mix). Input handling stays separate from game logic so this can be added later.
 
+**Runs and bosses** (Phase 3; decisions are the Developer's from 2026-11-16 unless marked as proposed; nothing is implemented yet)
+- A run has three stages. Each stage is a regular battle followed by a boss, six battles in all. Beating the final boss wins the run. Player HP reaching 0 loses it, and the player can start a new run.
+- HP and stored paint carry over between battles within a run (Developer decision, 2026-11-16; stored paint carrying over may change after balancing). The player heals +10 HP after each boss, capped at max HP (20), and does not heal after regular battles.
+- After beating a boss (the first two; the third ends the run), the player chooses between two random weapons, drawn from all weapons, so one may be the weapon already held. The offer that matches the held weapon is labeled "Keep" (for example "Keep: Brush"). Choosing a different weapon replaces the current one. Developer decision, 2026-11-16.
+- Each boss is one enemy with a special ability. The four abilities are paint thief, ink blot, shield, and heal. Each run gives the three bosses three different abilities, chosen at random (one of the four is left out). Each boss has its own art, tied to its ability. The ability and its countdown are shown on the boss card from the start of the fight.
+- Ability details (proposed starting values, to tune by playtesting; each runs on its own countdown, which starts at its full value when the boss fight starts (Developer decision), and acts after enemy attacks in the turn order):
+  - Paint thief: every 3 turns, removes 3 paint from the player's fullest bottle.
+  - Ink blot: every 3 turns, turns 4 random non-empty bottles into empties.
+  - Shield: while shielded, white damage to the boss is halved (rounded down, at least 1). Hitting the boss with paint breaks the shield for 3 turns.
+  - Heal: every 3 turns, the boss heals 4 HP.
+- Starting encounters (Developer accepted the Agent's numbers on 2026-11-16, to be tuned by playtesting; enemy countdowns shorten in later stages by the Developer's request, and the specific later-stage countdowns are the Agent's proposal):
+  - Stage 1: a regular battle of 3 enemies with 10 HP and countdowns 4, 5, 6; then a boss with 30 HP that hits for 4.
+  - Stage 2: 3 enemies with 12 HP and countdowns 4, 4, 5; then a boss with 40 HP that hits for 5.
+  - Stage 3: 3 enemies with 14 HP and countdowns 3, 4, 5; then a boss with 50 HP that hits for 6.
+  - Every boss has a countdown of 5 turns and attacks when it reaches 0, like other enemies, using its own damage.
+- Out of scope for Phase 3: character unlocks, saving, and extra encounter variety (Phase 4).
+- Open: how boss art is made (placeholder CSS shapes for now), the exact ability numbers, and whether any ability needs an on-screen warning before it triggers.
+
 **Test settings** (for the Developer's testing, not player features): a weapon dropdown above the board; `?seed=N` in the address for a repeatable battle; `?fullPaint` to start with full paint bottles so mixing and rainbow can be tried quickly.
 
 **Acceptance checks (all pending implementation and verification)**

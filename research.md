@@ -34,6 +34,8 @@ Record consequential changes to the approved scope: what changed, why, and what 
 
 - **2026-11-09:** Replace the Godot build direction with a browser-based game. Retain matching, cascades, paint storage, separate palette mixing, paint abilities, enemy countdowns, equipment, repeatable runs targeting roughly 30 minutes, and three characters. Equipment and paint reset between runs; character unlocks persist. The first milestone remains one playable battle. No gameplay features were added or cut. This decision supersedes the Godot direction in `pitch.md`; the pitch is preserved as the original proposal. Studio director approval status has not been confirmed in this session.
 
+- **2026-11-16:** Phase 3 adds boss special abilities, which the pitch did not include (the pitch named only a final boss). A run now has three stages of a regular battle and a boss, with three bosses. Each boss has a special ability drawn at random without repeats from four: paint thief, ink blot, shield, and heal, each with its own art. HP and paint carry over within a run, and the player chooses between two random weapons after each of the first two bosses. This increases scope and schedule risk, since it needs new rules, events, UI, and art. Abilities are built last in the checkpoint order so a plain run is playable first. See `spec.md` for the rules and open items.
+
 ## Sources and credits
 
 List every external source, code library, asset, and dataset you use, with its link, license or usage terms, and required credit.

@@ -36,6 +36,16 @@ Status of all checkpoints: not started.
 
 Commit each working checkpoint. Schedule (2026-11-16): the Developer is behind the pitch's map, chose to leave the dates unchanged, and plans to put in more time to catch up.
 
+### Phase 3 checkpoints (agreed 2026-11-16, after checkpoints 1 to 5)
+
+Goal: one complete short run: three stages of a regular battle and a boss, a weapon choice after each of the first two bosses, win by beating the final boss. Rules are in the "Runs and bosses" section of `spec.md`. Status: not started.
+
+6. **Run structure (no UI).** Run state in `game/`: stages and encounters, carry-over of HP and paint, +10 heal after each boss, run won and lost, new run. Plain bosses with no abilities yet. Test: Vitest tests for the carry-over, heal, and run-end rules.
+7. **Run UI.** Progress display, between-battle screens, and run won and lost with restart. Test: the Developer plays a plain run on desktop and phone.
+8. **Weapon choice.** After the first two bosses, a screen offering two random weapons from all weapons, with the held one labeled "Keep". Test: Vitest tests for the draw (seeded) and replace rule, and the Developer plays it.
+9. **Boss abilities**, one at a time: paint thief, ink blot, shield, heal. Three different abilities are drawn per run, shown from the start of the fight, each with its own countdown and placeholder art. Test: Vitest tests per ability, then the Developer plays.
+10. **Full-run playtest and balance**, then the simplification review the plan calls for at the end of Phase 3.
+
 ## Testing and evidence
 
 Record what you tested and what happened. For peer testing, note what people did or said separately from your interpretation, keep it non-identifying, and record the revisions you made and how you verified them.
