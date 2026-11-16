@@ -9,7 +9,7 @@ export interface ViewOptions {
   message: string;
   messageIsLock?: boolean;
   popCells?: Cell[]; // bottles to show shrinking away
-  dropIn?: boolean; // new bottles fall in
+  falls?: Map<string, number>; // rows each bottle falls, keyed by its new "row,col"
   shake?: Cell[]; // cells to shake (rejected swap)
   floats?: { enemyId: number; text: string }[]; // damage numbers
   attackedEnemies?: number[];
@@ -60,18 +60,20 @@ function enemyCard(enemy: Enemy, view: ViewOptions): HTMLElement {
 }
 
 function board(state: BattleState, view: ViewOptions): HTMLElement {
-  const root = el('div', `board${state.heldMix ? ' locked' : ''}${view.dropIn ? ' drop' : ''}`, {
+  const root = el('div', `board${state.heldMix ? ' locked' : ''}`, {
     role: 'grid', 'aria-label': 'Bottle board',
   });
   const has = (cells: Cell[] | undefined, row: number, col: number) =>
     cells?.some((c) => c.row === row && c.col === col) ?? false;
   state.board.forEach((rowBottles, row) =>
     rowBottles.forEach((bottle, col) => {
+      const fall = view.falls?.get(`${row},${col}`);
       const cell = el(
         'div',
-        `cell bottle-${bottle}${has(view.popCells, row, col) ? ' pop' : ''}${has(view.shake, row, col) ? ' shake' : ''}`,
+        `cell bottle-${bottle}${has(view.popCells, row, col) ? ' pop' : ''}${has(view.shake, row, col) ? ' shake' : ''}${fall ? ' fall' : ''}`,
         { 'data-row': String(row), 'data-col': String(col), role: 'gridcell', 'aria-label': `${bottle} bottle, row ${row + 1}, column ${col + 1}` },
       );
+      if (fall) cell.style.setProperty('--fall', String(fall));
       cell.append(el('div', 'shape'));
       root.append(cell);
     }),

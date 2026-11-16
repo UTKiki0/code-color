@@ -87,6 +87,7 @@ button { cursor: pointer; font-weight: 700; }
   display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--gap); width: 100%;
   background: var(--panel); border: 2px solid var(--ink); border-radius: var(--radius); padding: 6px;
   touch-action: none; user-select: none; -webkit-user-select: none;
+  overflow: hidden; /* new bottles fall in from above the board edge */
 }
 .board.locked { opacity: .55; }
 .cell { aspect-ratio: 1; min-width: 0; display: grid; place-items: center; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .35)); }
@@ -118,9 +119,16 @@ button { cursor: pointer; font-weight: 700; }
 
 /* ---- Animation (turned off by the reduced-motion rule below) ---- */
 .cell.pop .shape { animation: pop .25s forwards; }
-.drop .cell .shape { animation: drop .3s; }
+/* Falling bottles: farther falls take longer, and each lands with a small bounce.
+   --fall is the number of rows to fall; one row is a cell height plus the gap. */
+.cell.fall { animation: fall calc(.16s + var(--fall) * .07s) cubic-bezier(.5, 0, .9, .6) both; }
 @keyframes pop { to { transform: scale(0); opacity: 0; } }
-@keyframes drop { from { transform: translateY(-60%); opacity: 0; } }
+@keyframes fall {
+  0% { transform: translateY(calc(var(--fall) * (-100% - var(--gap)))); animation-timing-function: cubic-bezier(.5, 0, .9, .6); }
+  82% { transform: translateY(0); animation-timing-function: ease-out; }
+  91% { transform: translateY(-7%); animation-timing-function: ease-in; }
+  100% { transform: translateY(0); }
+}
 @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 @keyframes floatUp { to { transform: translateY(-18px); opacity: 0; } }
 

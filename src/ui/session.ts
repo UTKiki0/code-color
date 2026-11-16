@@ -3,6 +3,7 @@ import type { Cell } from '../game/board';
 import { mix, spend, useMix } from '../game/paint';
 import { createRng, type Rng } from '../game/rng';
 import { PAINT_MAX, SPEND_COST, type PaintColor } from '../game/rules';
+import { computeFalls } from './falls';
 import { attachInput } from './input';
 import { renderBattle, type ViewOptions } from './view';
 
@@ -11,7 +12,9 @@ import { renderBattle, type ViewOptions } from './view';
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const POP_MS = 250;
+const POP_MS = 220; // how long matched bottles shrink before the board falls
+const FALL_BASE_MS = 200; // wait after a fall starts; longer falls wait a little more
+const FALL_PER_ROW_MS = 70;
 
 const enemyName = (id: number) => `Canvas ${id + 1}`;
 
@@ -73,6 +76,26 @@ export function startSession(root: HTMLElement, seed: number, options: { fullPai
     draw(effectsFrom(result.events));
   };
 
+  /**
+   * Plays a move step by step: the swap, then for each cascade step the matched
+   * bottles pop and the rest fall into place with new bottles dropping in.
+   */
+  const playCascade = async (a: Cell, b: Cell, result: TurnResult) => {
+    let shown = state.board.map((r) => [...r]);
+    shown[a.row]![a.col] = state.board[b.row]![b.col]!;
+    shown[b.row]![b.col] = state.board[a.row]![a.col]!;
+    for (const event of result.events) {
+      if (event.type !== 'bottlesCleared') continue;
+      const stepMessage = event.step > 1 ? `Cascade x${event.step}!` : message;
+      renderBattle(root, { ...state, board: shown }, { message: stepMessage, popCells: event.cells });
+      await sleep(POP_MS);
+      const falls = computeFalls(event.cells);
+      shown = event.boardAfter;
+      renderBattle(root, { ...state, board: shown }, { message: stepMessage, falls });
+      await sleep(FALL_BASE_MS + Math.max(0, ...falls.values()) * FALL_PER_ROW_MS);
+    }
+  };
+
   attachInput(root, {
     busy: () => busy,
 
@@ -86,19 +109,10 @@ export function startSession(root: HTMLElement, seed: number, options: { fullPai
         return;
       }
       busy = true;
-      // Show the first match shrinking away, then the resolved board.
-      const first = result.events.find((e) => e.type === 'bottlesCleared');
-      if (first?.type === 'bottlesCleared' && !reducedMotion()) {
-        // The board shown is the pre-swap board, so redraw it with the swap applied first.
-        const swapped = state.board.map((r) => [...r]);
-        swapped[a.row]![a.col] = state.board[b.row]![b.col]!;
-        swapped[b.row]![b.col] = state.board[a.row]![a.col]!;
-        renderBattle(root, { ...state, board: swapped }, { message, popCells: first.cells });
-        await sleep(POP_MS);
-      }
+      if (!reducedMotion()) await playCascade(a, b, result);
       state = result.state;
       message = describe(result.events);
-      draw({ dropIn: !reducedMotion(), ...effectsFrom(result.events) });
+      draw(effectsFrom(result.events));
       busy = false;
     },
 

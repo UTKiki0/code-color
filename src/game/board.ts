@@ -11,7 +11,12 @@ export interface Cell {
 
 // Events tell the UI (and later the turn rules) what happened, in order.
 export type BoardEvent =
-  | { type: 'bottlesCleared'; step: number; cells: (Cell & { bottle: Bottle })[] }
+  | {
+      type: 'bottlesCleared';
+      step: number;
+      cells: (Cell & { bottle: Bottle })[];
+      boardAfter: Board; // the board once these bottles are gone, the rest have fallen, and new ones filled in
+    }
   | { type: 'shuffled' };
 
 export interface SwapResult {
@@ -153,12 +158,9 @@ export function swap(board: Board, a: Cell, b: Cell, rng: Rng): SwapResult {
   for (let step = 1; ; step++) {
     const matches = findMatches(current);
     if (matches.length === 0) break;
-    events.push({
-      type: 'bottlesCleared',
-      step,
-      cells: matches.map((cell) => ({ ...cell, bottle: current[cell.row]![cell.col]! })),
-    });
+    const cells = matches.map((cell) => ({ ...cell, bottle: current[cell.row]![cell.col]! }));
     current = clearAndRefill(current, matches, rng);
+    events.push({ type: 'bottlesCleared', step, cells, boardAfter: current });
   }
 
   if (!hasValidMove(current)) {

@@ -163,6 +163,7 @@ Direction from the pitch: playful, slightly chaotic, cartoony. Specific typograp
 - Layout is one column, scaled to the viewport: enemies on top, then the storage bottles and held mix, then the board. One CSS layout model (grid or flexbox) is used throughout, with sizes relative to the board cell.
 - Colors and sizes are CSS variables defined in one place. Each paint's shape and label are defined with its color.
 - Animation is driven by game events and respects the reduced-motion setting.
+- Cascades play one step at a time (Developer request, 2026-11-16): matched bottles shrink, the bottles above fall by the number of gaps beneath them, and new bottles fall in from above the board edge, then the next step starts. Longer falls take longer, and landings have a small bounce. The board is not interactive while a move plays. The game reports the board after each step so the UI shows what the rules did rather than computing its own result.
 - Accessibility rules above apply to every screen.
 
 ### Structure rules
