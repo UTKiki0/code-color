@@ -41,6 +41,8 @@ Commit each working checkpoint. Schedule (2026-11-16): the Developer is behind t
 Record what you tested and what happened. For peer testing, note what people did or said separately from your interpretation, keep it non-identifying, and record the revisions you made and how you verified them.
 
 - **2026-11-09:** Documentation records the approved platform change. No browser build or gameplay validation has been completed.
+- **2026-11-16, checkpoint 1 (project setup):** The Agent ran `npm test` (1 of 1 passed) and `npm run build` (type check and build succeeded), and fetched the local preview. Committed as `e4757d8` and pushed to `main`. The Developer enabled GitHub Pages and reported seeing the "setup check" page at the public URL. No gameplay has been tested.
+- **2026-11-16, checkpoint 2 (board logic):** The Agent wrote `src/game/` (`rules.ts`, `rng.ts`, `board.ts`) and `tests/board.test.ts`. `npm test` passed 14 of 14 and `npm run build` succeeded. The tests cover: swap rejection (no match, non-adjacent, out of bounds), 3-match, 5-run, L-shape counted once per bottle, a two-step cascade with ordered steps, spawn weights over 20,000 samples, board creation over 50 seeds, `shuffleBoard` on a stuck board, and 100 seeded swaps that must leave a stable playable board. Not covered: the shuffle triggered from inside `swap` is checked only by the invariant test, not forced directly. Awaiting the Developer's review; not committed.
 
 ## Simplification reviews
 
