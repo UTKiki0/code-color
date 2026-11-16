@@ -3,36 +3,9 @@ import {
   createBoard, findMatches, hasValidMove, pickBottle, shuffleBoard, swap,
   type Board, type Cell,
 } from '../src/game/board';
-import { BOARD_SIZE, SPAWN_WEIGHTS, type Bottle } from '../src/game/rules';
+import { BOARD_SIZE, SPAWN_WEIGHTS } from '../src/game/rules';
 import { createRng } from '../src/game/rng';
-
-const LETTERS: Record<string, Bottle> = {
-  r: 'red', y: 'yellow', b: 'blue', w: 'white', e: 'empty',
-};
-
-// Parses 7 strings of 7 letters (r y b w e) into a board.
-const parse = (rows: string[]): Board => rows.map((row) => [...row].map((c) => LETTERS[c]!));
-
-// A fixed 7x7 board with no matches, used as the starting point for crafted boards.
-const BASE = [
-  'rybwery',
-  'bwerybw',
-  'erybwer',
-  'ybwerybw'.slice(0, 7),
-  'weryb' + 'we',
-  'rybwery',
-  'bwerybw',
-];
-
-// Returns BASE with some cells replaced: edits maps "row,col" to a letter.
-function withEdits(edits: Record<string, string>): Board {
-  const rows = BASE.map((r) => [...r]);
-  for (const [key, letter] of Object.entries(edits)) {
-    const [row, col] = key.split(',').map(Number) as [number, number];
-    rows[row]![col] = letter;
-  }
-  return parse(rows.map((r) => r.join('')));
-}
+import { BASE, parse, withEdits } from './helpers';
 
 // Finds any swap that would make a match, by trying them all.
 function findValidSwap(board: Board): [Cell, Cell] | undefined {

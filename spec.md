@@ -47,7 +47,8 @@ The first playable milestone remains one battle demonstrating bottle matching, c
 - Order of resolution for each turn: (1) the swap, matches, and cascades resolve, collecting paint and dealing white damage; (2) burn ticks on enemies; (3) dead enemies are removed; (4) remaining countdowns advance by 1; (5) any enemy at 0 attacks the player, then resets its countdown; (6) win and lose are checked. Burn can therefore kill an enemy before it attacks.
 
 **Matching and paint**
-- Each white bottle cleared deals 1 damage to a random enemy (a match of 4 deals 4).
+- Each white match picks one random living enemy, and every white bottle in that match deals 1 damage to it (a match of 4 deals 4 to one enemy). A match is a group of touching cleared bottles of one type, so an L or T shape counts as one match. Each match in a cascade picks its own target. Developer decision, 2026-11-16.
+- A battle ends at the end of turn resolution: if the last enemy dies mid-move, remaining steps run with no enemies left, so burn and attacks do nothing.
 - Each red, yellow, or blue bottle cleared adds 1 paint of that color to its storage bottle, up to a maximum of 9. Storage bottles sit above the board.
 - Only white bottles deal damage on a match.
 

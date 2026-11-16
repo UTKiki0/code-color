@@ -14,3 +14,24 @@ export const SPAWN_WEIGHTS: Record<Bottle, number> = {
   white: 0.28,
   empty: 0.18,
 };
+
+// --- Battle rules (checkpoint 3) ---
+
+export type PaintColor = 'red' | 'yellow' | 'blue';
+export const PAINT_COLORS: PaintColor[] = ['red', 'yellow', 'blue'];
+export const PAINT_MAX = 9;
+
+export type Weapon = 'paintballGun'; // brush and roller are added in a later checkpoint
+
+// Damage dealt by each white bottle cleared, by equipped weapon.
+export const WHITE_DAMAGE: Record<Weapon, number> = { paintballGun: 2 };
+
+export const PLAYER_START_HP = 20;
+export const ENEMY_ATTACK_DAMAGE = 3;
+
+// Enemies in the first battle. The countdown is in player turns (successful moves).
+export const FIRST_BATTLE_ENEMIES = [
+  { hp: 10, countdown: 4 },
+  { hp: 10, countdown: 5 },
+  { hp: 10, countdown: 6 },
+];
