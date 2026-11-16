@@ -11,6 +11,7 @@ export interface ViewOptions {
   popCells?: Cell[]; // bottles to show shrinking away
   falls?: Map<string, number>; // rows each bottle falls, keyed by its new "row,col"
   shake?: Cell[]; // cells to shake (rejected swap)
+  speed?: number; // 1 = normal; smaller makes this frame's animations shorter
   attackedEnemies?: number[];
   playerHit?: boolean;
 }
@@ -105,6 +106,7 @@ function palette(state: BattleState): HTMLElement {
 /** Draws the whole battle into `root`, replacing what was there. */
 export function renderBattle(root: HTMLElement, state: BattleState, view: ViewOptions): void {
   const game = el('main', 'game');
+  if (view.speed !== undefined) game.style.setProperty('--speed', String(view.speed));
 
   const top = el('header', 'topbar');
   const title = el('h1');

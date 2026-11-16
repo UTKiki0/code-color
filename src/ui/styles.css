@@ -131,10 +131,11 @@ button { cursor: pointer; font-weight: 700; }
 .overlay h2 { margin: 0; font-size: 1.8rem; }
 
 /* ---- Animation (turned off by the reduced-motion rule below) ---- */
-.cell.pop .shape { animation: pop .25s forwards; }
-/* Falling bottles: farther falls take longer, and each lands with a small bounce.
+.cell.pop .shape { animation: pop calc(.25s * var(--speed, 1)) forwards; }
+/* --speed (set per frame by the replay) shortens later cascade steps; see pace.ts.
+   Falling bottles: farther falls take longer, and each lands with a small bounce.
    --fall is the number of rows to fall; one row is a cell height plus the gap. */
-.cell.fall { animation: fall calc(.16s + var(--fall) * .07s) cubic-bezier(.5, 0, .9, .6) both; }
+.cell.fall { animation: fall calc((.16s + var(--fall) * .07s) * var(--speed, 1)) cubic-bezier(.5, 0, .9, .6) both; }
 @keyframes pop { to { transform: scale(0); opacity: 0; } }
 @keyframes fall {
   0% { transform: translateY(calc(var(--fall) * (-100% - var(--gap)))); animation-timing-function: cubic-bezier(.5, 0, .9, .6); }

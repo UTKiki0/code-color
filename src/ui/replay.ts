@@ -3,6 +3,7 @@ import type { Board, Cell } from '../game/board';
 import type { PaintColor } from '../game/rules';
 import { computeFalls } from './falls';
 import { floatOverCells, floatOverEnemy } from './fx';
+import { stepSpeed } from './pace';
 import { renderBattle } from './view';
 
 // Replays one move step by step: for each cascade step the matched bottles pop,
@@ -10,8 +11,8 @@ import { renderBattle } from './view';
 // board falls into place. The caller draws the authoritative final state afterwards.
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const POP_MS = 220; // how long matched bottles shrink before the board falls
-const FALL_BASE_MS = 200; // wait after a fall starts; longer falls wait a little more
+const POP_MS = 220; // how long matched bottles shrink before the board falls (at normal speed)
+const FALL_BASE_MS = 200; // wait after a fall starts; longer falls wait a little more (at normal speed)
 const FALL_PER_ROW_MS = 70;
 const BURN_BEAT_MS = 450;
 const COMBO_RAISE_PX = -40; // combo text sits above the numbers
@@ -84,15 +85,16 @@ export async function playMove(
 
   for (const step of groupSteps(result.events)) {
     const stepMessage = step.clear.step > 1 ? `Combo x${step.clear.step}!` : message;
+    const speed = stepSpeed(step.clear.step); // later steps play faster
     applyToView(view, step.derived);
-    renderBattle(root, { ...view, board }, { message: stepMessage, popCells: step.clear.cells });
+    renderBattle(root, { ...view, board }, { message: stepMessage, popCells: step.clear.cells, speed });
     showStepFx(step);
-    await sleep(POP_MS);
+    await sleep(POP_MS * speed);
 
     const falls = computeFalls(step.clear.cells);
     board = step.clear.boardAfter;
-    renderBattle(root, { ...view, board }, { message: stepMessage, falls });
-    await sleep(FALL_BASE_MS + Math.max(0, ...falls.values()) * FALL_PER_ROW_MS);
+    renderBattle(root, { ...view, board }, { message: stepMessage, falls, speed });
+    await sleep((FALL_BASE_MS + Math.max(0, ...falls.values()) * FALL_PER_ROW_MS) * speed);
   }
 
   // Burn ticks happen after all the matches, so they get their own beat.
