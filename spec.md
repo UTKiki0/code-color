@@ -18,9 +18,94 @@ When you begin this step, start a fresh chat so its transcript stays clean. For 
 
 What Users should be able to do and experience in the current version, tied to the goals in your pitch.
 
+**Platform decision approved by the Developer, 2026-11-09:** Build Code: Color as a browser-based game. Keep the painting-themed match-3 battle RPG, its playful cartoon direction, and its audience of RPG players who enjoy builds with approachable rules for casual players.
+
+The retained scope includes repeatable runs targeting roughly 30 minutes, equipment rewards and a final boss, and three characters: one initially available and two unlocked through distinct goals. Equipment and stored paint reset between runs; character unlocks persist. Exact unlock conditions and scoring remain open.
+
 ## Behavior and acceptance checks
 
 For each feature or behavior you are building, describe what it should do and what counts as working, including failure cases and accessibility where they apply. Distinguish approved behavior from provisional ideas, and leave untested details open until they are needed.
+
+The first playable milestone remains one battle demonstrating bottle matching, cascades, paint storage, separate palette mixing, paint abilities, an equipment effect, and enemy countdowns. Retain these checks from the pitch; implementation and verification remain pending:
+
+- A successful board move collects paint from its matches and cascades and advances enemy countdowns exactly once.
+- Mixing and spending stored paint do not advance enemy countdowns.
+- An enemy attacks when its countdown reaches zero.
+- The player can win or lose the battle and restart.
+
+### Battle rules (Developer-approved 2026-11-16; numbers are starting values to be tuned by playtesting)
+
+**Board**
+- 7×7 grid. The player swipes a bottle to swap it with an adjacent one. A match is 3 or more in a row, horizontal or vertical.
+- Bottle types: red, yellow, blue, white, empty. Each paint color has a distinct shape as well as a color. Empty bottles can be swapped and matched, and give no reward.
+- A swap that makes no match reverts and is not a move. Matched bottles clear, bottles above fall, and new bottles fill in (cascades repeat until no match remains).
+- If no valid move exists, the board shuffles. A shuffle is free: it advances no countdowns and ticks no burn.
+- Starting spawn weights: red, yellow, blue 18% each; white 28%; empty 18%.
+
+**Turns**
+- A turn is one successful move. Burn ticks once per turn; countdowns advance once per turn, including all cascades from that move. Mixing and spending paint are not turns.
+- Order of resolution for each turn: (1) the swap, matches, and cascades resolve, collecting paint and dealing white damage; (2) burn ticks on enemies; (3) dead enemies are removed; (4) remaining countdowns advance by 1; (5) any enemy at 0 attacks the player, then resets its countdown; (6) win and lose are checked. Burn can therefore kill an enemy before it attacks.
+
+**Matching and paint**
+- Each white bottle cleared deals 1 damage to a random enemy (a match of 4 deals 4).
+- Each red, yellow, or blue bottle cleared adds 1 paint of that color to its storage bottle, up to a maximum of 9. Storage bottles sit above the board.
+- Only white bottles deal damage on a match.
+
+**Spending paint on an enemy** (drag a storage bottle onto an enemy; costs 3 paint)
+- Red: burn of 1 damage per turn for 3 turns.
+- Yellow: 2 damage immediately.
+- Blue: the enemy's countdown increases by 1.
+- Burning again refreshes the duration; it does not stack.
+
+**Mixing** (drag a full storage bottle onto another full storage bottle; consumes 9 of each ingredient)
+- The mixed paint is held, shown over the storage bottles. The player then drags it onto an enemy to apply it, or onto the one remaining full paint bottle to make rainbow. Nothing is applied until the player drops it.
+- Rainbow therefore takes two drags: first a mix of any two colors, then that mix onto the third full color. The player consumes 9 of each color in total.
+- Only one mix can be held at a time, and a mix cannot be cancelled. While a mix is held, the board is locked: the player must use the mix before swiping again, so a held mix never carries into a move.
+- Green (blue + yellow): resets the enemy's countdown to its start.
+- Purple (red + blue): countdown +2, then burn of 2 damage per turn for 3 turns.
+- Orange (red + yellow): burn of 3 damage per turn for 3 turns.
+- Rainbow (a held mix dropped onto the remaining full third color): 6 damage to all enemies, plus one random effect from green, purple, or orange, rolled separately for each enemy.
+
+**Weapons** (Developer-approved 2026-11-16; effects are starting values)
+- **Paintball gun:** white bottles deal more damage on a match: 2 per bottle instead of 1 (provisional number; the Developer set the effect, not the amount). The first character starts with it. The base rules above (1 white damage) apply when another weapon is equipped.
+- **Brush:** a direct paint spend lasts longer. For example, red burn lasts 5 turns instead of 3. Exact scope of the effect is provisional.
+- **Roller:** white matches hit all enemies instead of one random enemy.
+- The other two characters start with the brush and the roller. Which weapon goes with which character is deferred to Phase 4.
+- A run has three boss fights; beating the final one wins the run. After beating a boss fight, the player chooses a new weapon, which replaces the current one (one weapon at a time). Weapons reset between runs.
+
+**Battle**
+- First battle: the player has 20 HP and faces 3 enemies with 10 HP each and countdowns of 4, 5, and 6 turns.
+- When an enemy's countdown reaches 0, it deals 3 damage to the player, and its countdown resets.
+- The player wins when all enemies are dead and loses when HP reaches 0. Either result offers a restart.
+
+**Supported platforms** (Developer-approved 2026-11-16)
+- Desktop: the latest two versions of Chrome, Firefox, Safari, and Edge. Mobile: Safari on iOS and Chrome on Android.
+- Layout works from a portrait phone width of about 360px up to a desktop window; the board scales to fit. Mouse and touch both work through Pointer Events.
+- The Developer tests on their own desktop browser and phone. Other combinations are untested.
+
+**Accessibility** (Developer accepted the Agent's proposal on 2026-11-16, with item 6 deferred)
+- Color is never the only signal: each paint has a distinct shape, and storage bottles and held mixes also show a text label or icon, such as "R 6/9".
+- Enemy countdowns, burn and slow status, player HP, and paint counts appear as numbers or icons, not only color or bars.
+- Text and key UI meet WCAG AA contrast (4.5:1 for normal text).
+- Draggable bottles and enemies are at least 44×44 CSS px.
+- With the browser's reduced-motion setting on, animations are shortened or removed, and nothing flashes.
+- Deferred to Phase 5: keyboard operation (arrow-key selection, Enter to swap, spend, and mix). Input handling stays separate from game logic so this can be added later.
+
+**Acceptance checks (all pending implementation and verification)**
+- A swap that creates no match reverts and changes no countdown, burn, or paint.
+- A move with a cascade collects the correct paint and white damage, and advances countdowns and burn exactly once.
+- Paint never exceeds 9. Spending requires 3 paint; mixing requires every ingredient bottle full.
+- Spending and mixing leave countdowns and burn unchanged.
+- Each paint effect and mix matches the rules above, and burn refresh does not stack.
+- A shuffle changes no battle state.
+- With the paintball gun, each white bottle cleared deals 2 damage; with the brush or roller equipped, 1 (the roller hitting all enemies).
+- While a mix is held, board swipes are rejected. Using the mix unlocks the board.
+- A turn resolves in the order given above. An enemy killed by burn does not attack.
+- An enemy attacks at countdown 0, and the player can win, lose, and restart.
+
+**Still open**
+- Balance: with the paintball gun, white deals 2 per bottle, the same as a 3-paint yellow spend. Watch whether yellow feels weak; the numbers are untested.
+- How the three boss fights fit between ordinary battles in a run (run structure is outside the single-battle milestone).
 
 ## Architecture
 
@@ -30,22 +115,66 @@ How the system works and the structural decisions that keep it coherent, consist
 
 The main parts of the system, what each is responsible for, and how they connect. Include a simple diagram.
 
+Status: Developer approved this structure on 2026-11-16. Nothing is implemented yet.
+
+```
+ Pointer events ──> ui/ (DOM + CSS) ──commands──> game/ (pure TypeScript)
+                      ^                              |
+                      └──── state + events ──────────┘
+                                                     
+ save/ (localStorage) <── unlocks only ── ui/ (outside the battle)
+ tests/ (Vitest) ──────── commands ──────> game/ (no DOM needed)
+```
+
+- **`game/`:** all rules: board, matching and cascades, paint storage, mixing, effects, enemies, turn resolution, and weapons. It has no DOM access and uses a seedable random number generator so tests can force outcomes.
+- **`ui/`:** renders the current state and turns Pointer Events into commands. It decides nothing about the rules.
+- **`save/`:** stores character unlocks in `localStorage`. It is not needed for the first battle.
+- **`tests/`:** Vitest tests, one per acceptance check, run against `game/` alone.
+
 ### Data and state
 
 What information the system keeps, where each piece lives, and how it moves and changes. Name the single source of truth for each important piece of state.
+
+- **Battle state** lives only in `game/`: board grid, paint storage (3 counts, each 0 to 9), the held mix (none or one), player HP, the equipped weapon, and each enemy's HP, countdown, burn, and status. The UI reads it and never changes it.
+- **Rule values** (damage, durations, costs, spawn weights, enemy stats) live in one data file in `game/`, so balancing means editing numbers, not logic.
+- **Unlocked characters** live only in `save/` (`localStorage`). Equipment and paint are never saved, so they reset between runs.
+- **Transient UI state** (drag in progress, animation timing) lives in `ui/` and never reaches the game.
 
 ### Interaction loop
 
 How User input or other events lead to changes in state and then to what the User sees, hears, or receives.
 
+1. The player acts: swipes a bottle, or drags a storage bottle or held mix. `ui/` converts this to a command: `swap`, `spend`, `mix`, `useMix`, or `restart`.
+2. `game/` validates the command against the rules (for example, rejecting swipes while a mix is held, or a mix with a non-full bottle). A rejected command changes nothing.
+3. For an accepted command, `game/` returns the new state and an ordered list of events, such as `bottlesCleared`, `paintGained`, `burnTicked`, `enemyDied`, `enemyAttacked`, and `shuffled`.
+4. `ui/` replays the events as animation and then shows the final state. If the two ever disagree, the state wins.
+5. Turn commands resolve in the order set out in "Turns".
+
 ### Visual and content rules
 
 The shared rules that establish the art style and keep the presentation consistent, such as branding, layout, color, type, motion, sound, and asset conventions.
+
+Direction from the pitch: playful, slightly chaotic, cartoony. Specific typography, palette, logo, and sound are not yet decided.
+
+- Layout is one column, scaled to the viewport: enemies on top, then the storage bottles and held mix, then the board. One CSS layout model (grid or flexbox) is used throughout, with sizes relative to the board cell.
+- Colors and sizes are CSS variables defined in one place. Each paint's shape and label are defined with its color.
+- Animation is driven by game events and respects the reduced-motion setting.
+- Accessibility rules above apply to every screen.
 
 ### Structure rules
 
 The conventions that keep the system lean: how files and code are organized, where new features belong, and the general rules that handle cases by design instead of one-off fixes.
 
+- A rule goes in `game/`; how something looks or is input goes in `ui/`. If a feature needs both, the rule is written first and tested alone.
+- `game/` never imports from `ui/` or touches the DOM.
+- Paint effects, mixes, and weapons are defined as data (a table of entries) with one shared way of applying them, so a new effect or weapon is a new entry, not a new special case.
+- Every acceptance check has a Vitest test before the feature is called done.
+- Keep dependencies to TypeScript, Vite, and Vitest unless the Developer approves another.
+
 ### Decisions and changes
 
 Consequential structural decisions, the alternatives considered, and why you chose as you did, including later changes to the structure.
+
+- **2026-11-09:** The Developer approved switching from Godot to a browser-based build while retaining gameplay and scope. See `research.md` for the platform change record.
+- **2026-11-16 — Architecture approved:** The `game/` (pure rules), `ui/` (DOM), `save/`, and `tests/` split described above, with commands in and state plus events out. Trade-off accepted: the UI makes no decisions, so desktop and touch behave identically, but animation must be driven from returned events.
+- **2026-11-09 — Stack approved:** TypeScript + Vite + Vitest; DOM + CSS rendering; Pointer Events for mouse and touch; `localStorage` for character unlocks; GitHub Pages hosting. Alternatives considered: Canvas (more control over effects, but UI, layout, and accessibility must be hand-built), Phaser, and React/Svelte (extra libraries). Intended structural direction, pending architecture approval: game rules live in a pure TypeScript module with no DOM access, separate from the rendering layer, so acceptance checks run as automated tests. Supported browsers and the detailed architecture sections above remain undefined.
