@@ -2,7 +2,7 @@ import { createBoard, swap, type Board, type BoardEvent, type Cell } from './boa
 import type { Rng } from './rng';
 import {
   ENEMY_ATTACK_DAMAGE, FIRST_BATTLE_ENEMIES, PAINT_COLORS, PAINT_MAX, PLAYER_START_HP,
-  WHITE_DAMAGE, type Bottle, type EffectName, type MixColor, type PaintColor, type Weapon,
+  whiteMatchDamage, type Bottle, type EffectName, type MixColor, type PaintColor, type Weapon,
 } from './rules';
 
 export interface Burn {
@@ -146,14 +146,12 @@ export function takeTurn(state: BattleState, a: Cell, b: Cell, rng: Rng): TurnRe
         events.push({ type: 'paintGained', color, amount });
       }
     }
-    // Each match hits one random enemy, and every white bottle in it deals damage. The roller
-    // differs: it hits every living enemy, once per match whatever the match size.
+    // Each match hits one random enemy (the roller hits every living enemy) for the match damage.
     for (const match of groupMatches(event.cells, 'white')) {
       const targets = living();
       if (targets.length === 0) break;
-      const roller = state.weapon === 'roller';
-      const hit = roller ? targets : [targets[Math.floor(rng() * targets.length)]!];
-      const amount = roller ? WHITE_DAMAGE.roller : match.length * WHITE_DAMAGE[state.weapon];
+      const hit = state.weapon === 'roller' ? targets : [targets[Math.floor(rng() * targets.length)]!];
+      const amount = whiteMatchDamage(match.length, state.weapon);
       for (const target of hit) {
         target.hp -= amount;
         events.push({ type: 'enemyDamaged', enemyId: target.id, amount, source: 'white', cells: match });

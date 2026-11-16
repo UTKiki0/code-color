@@ -77,11 +77,11 @@ describe('paint', () => {
 });
 
 describe('white damage', () => {
-  it('one match hits one random enemy for every bottle in it', () => {
+  it('one match hits one random enemy', () => {
     const result = takeTurn(battleOn(WHITE_BOARD, [enemy(0, { hp: 20 }), enemy(1, { hp: 20 })]), ...DOWN, refill());
     const hits = damageEvents(result.events);
     expect(hits).toHaveLength(1);
-    expect(hits[0]).toMatchObject({ amount: 6, source: 'white' }); // 3 bottles x 2 with the paintball gun
+    expect(hits[0]).toMatchObject({ amount: 2, source: 'white' }); // three whites: base 1 plus the gun's bonus 1
   });
 
   it('counts an L-shaped match as one match', () => {
@@ -92,7 +92,7 @@ describe('white damage', () => {
     const result = takeTurn(state, { row: 2, col: 0 }, { row: 3, col: 0 }, refill());
     const hits = damageEvents(result.events);
     expect(hits).toHaveLength(1);
-    expect(hits[0]).toMatchObject({ amount: 10 });
+    expect(hits[0]).toMatchObject({ amount: 4 }); // five whites: base 1, 2 extra, and the gun's bonus 1
   });
 });
 
@@ -172,7 +172,7 @@ describe('burn', () => {
 
 describe('winning and losing', () => {
   it('wins when the last enemy dies, with no attack that turn', () => {
-    const state = battleOn(WHITE_BOARD, [enemy(0, { hp: 6, countdown: 1 })]);
+    const state = battleOn(WHITE_BOARD, [enemy(0, { hp: 2, countdown: 1 })]);
     const result = takeTurn(state, ...DOWN, refill());
     expect(result.state.status).toBe('won');
     expect(result.state.enemies).toEqual([]);

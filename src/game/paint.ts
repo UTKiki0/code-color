@@ -2,7 +2,7 @@ import { removeDeadEnemies, statusFor, type BattleEvent, type BattleState, type 
 import { applyEffect } from './effects';
 import type { Rng } from './rng';
 import {
-  BRUSH_RED_BURN_TURNS, MIX_COLORS, MIX_EFFECTS, MIX_RECIPES, PAINT_EFFECTS, PAINT_MAX,
+  BRUSH_RED_BURN_TURNS, BRUSH_YELLOW_EXTRA_DAMAGE, MIX_COLORS, MIX_EFFECTS, MIX_RECIPES, PAINT_EFFECTS, PAINT_MAX,
   RAINBOW_DAMAGE, SPEND_COST, type Effect, type PaintColor,
 } from './rules';
 
@@ -26,8 +26,13 @@ export function spend(state: BattleState, color: PaintColor, enemyId: number): T
   if (!target) return reject(state);
 
   let effect: Effect = PAINT_EFFECTS[color];
-  if (color === 'red' && state.weapon === 'brush' && effect.burn) {
-    effect = { ...effect, burn: { ...effect.burn, turns: BRUSH_RED_BURN_TURNS } };
+  if (state.weapon === 'brush') {
+    // The brush strengthens direct red and yellow spends.
+    if (color === 'red' && effect.burn) {
+      effect = { ...effect, burn: { ...effect.burn, turns: BRUSH_RED_BURN_TURNS } };
+    } else if (color === 'yellow' && effect.damage) {
+      effect = { ...effect, damage: effect.damage + BRUSH_YELLOW_EXTRA_DAMAGE };
+    }
   }
   const events: BattleEvent[] = [{ type: 'paintSpent', color, amount: SPEND_COST }];
   applyEffect(target, effect, color, events);

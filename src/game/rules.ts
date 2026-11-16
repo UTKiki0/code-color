@@ -23,10 +23,16 @@ export const PAINT_MAX = 9;
 
 export type Weapon = 'paintballGun' | 'brush' | 'roller';
 
-// White damage by equipped weapon. For the paintball gun and brush it is dealt per white
-// bottle in a match, to one random enemy. For the roller it is dealt once per match, however
-// many bottles the match has, to every living enemy (it hit too hard when counted per bottle).
-export const WHITE_DAMAGE: Record<Weapon, number> = { paintballGun: 2, brush: 1, roller: 1 };
+// White damage per match: a base amount for a match of three, plus an extra amount for each
+// white bottle beyond the third, plus a bonus some weapons add to every match. A match is one
+// group of touching bottles.
+export const WHITE_BASE_DAMAGE = 1;
+export const WHITE_EXTRA_DAMAGE = 1;
+// The paintball gun's effect is more white damage. The Developer chose the effect but not the
+// amount, so +1 per match is a starting value to tune.
+export const WEAPON_WHITE_BONUS: Record<Weapon, number> = { paintballGun: 1, brush: 0, roller: 0 };
+export const whiteMatchDamage = (size: number, weapon: Weapon): number =>
+  WHITE_BASE_DAMAGE + Math.max(0, size - MIN_MATCH) * WHITE_EXTRA_DAMAGE + WEAPON_WHITE_BONUS[weapon];
 
 export const PLAYER_START_HP = 20;
 export const ENEMY_ATTACK_DAMAGE = 3;
@@ -53,11 +59,13 @@ export interface Effect {
 
 export const PAINT_EFFECTS: Record<PaintColor, Effect> = {
   red: { burn: { damage: 1, turns: 3 } },
-  yellow: { damage: 2 },
+  yellow: { damage: 3 },
   blue: { slow: 1 },
 };
-// The brush makes a direct red spend burn longer. Mixes are unaffected for now.
+// The brush strengthens direct spends: red burns longer and yellow hits harder.
+// Mixes are unaffected for now.
 export const BRUSH_RED_BURN_TURNS = 5;
+export const BRUSH_YELLOW_EXTRA_DAMAGE = 1;
 
 export type MixColor = 'green' | 'purple' | 'orange';
 export const MIX_COLORS: MixColor[] = ['green', 'purple', 'orange'];

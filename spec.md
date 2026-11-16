@@ -47,17 +47,17 @@ The first playable milestone remains one battle demonstrating bottle matching, c
 - Order of resolution for each turn: (1) the swap, matches, and cascades resolve, collecting paint and dealing white damage; (2) burn ticks on enemies; (3) dead enemies are removed; (4) remaining countdowns advance by 1; (5) any enemy at 0 attacks the player, then resets its countdown; (6) win and lose are checked. Burn can therefore kill an enemy before it attacks.
 
 **Matching and paint**
-- Each white match picks one random living enemy, and every white bottle in that match deals 1 damage to it (a match of 4 deals 4 to one enemy). A match is a group of touching cleared bottles of one type, so an L or T shape counts as one match. Each match in a cascade picks its own target. Developer decision, 2026-11-16.
+- Each white match picks one random living enemy and deals it 1 damage, plus 1 more for each white bottle beyond the third (3 whites = 1, 4 = 2, 5 = 3), plus any weapon bonus below (Developer decision, 2026-11-16, replacing the earlier per-bottle damage). A match is a group of touching cleared bottles of one type, so an L or T shape counts as one match. Each match in a cascade picks its own target.
 - A battle ends at the end of turn resolution: if the last enemy dies mid-move, remaining steps run with no enemies left, so burn and attacks do nothing.
 - Each red, yellow, or blue bottle cleared adds 1 paint of that color to its storage bottle, up to a maximum of 9. Storage bottles sit above the board.
 - Only white bottles deal damage on a match.
 
 **Spending paint on an enemy** (drag a storage bottle onto an enemy; costs 3 paint)
 - Red: burn of 1 damage per turn for 3 turns.
-- Yellow: 2 damage immediately.
+- Yellow: 3 damage immediately (Developer change, 2026-11-16; it was 2).
 - Blue: the enemy's countdown increases by 1.
 - Burning again refreshes the duration; it does not stack.
-- Spending is allowed while a mix is held (Developer decision, 2026-11-16). The brush lengthens only the direct red burn for now; the Developer may widen it after playtesting.
+- Spending is allowed while a mix is held (Developer decision, 2026-11-16). The brush changes only direct red and yellow spends for now; the Developer may widen it after playtesting.
 
 **Mixing** (drag a full storage bottle onto another full storage bottle; consumes 9 of each ingredient)
 - The mixed paint is held, shown over the storage bottles. The player then drags it onto an enemy to apply it, or onto the one remaining full paint bottle to make rainbow. Nothing is applied until the player drops it.
@@ -69,9 +69,9 @@ The first playable milestone remains one battle demonstrating bottle matching, c
 - Rainbow (a held mix dropped onto the remaining full third color): 6 damage to all enemies, plus one random effect from green, purple, or orange, rolled separately for each enemy. The damage lands first, so enemies it kills get no random effect.
 
 **Weapons** (Developer-approved 2026-11-16; effects are starting values)
-- **Paintball gun:** white bottles deal more damage on a match: 2 per bottle instead of 1 (provisional number; the Developer set the effect, not the amount). The first character starts with it. The base rules above (1 white damage) apply when another weapon is equipped.
-- **Brush:** a direct paint spend lasts longer. For example, red burn lasts 5 turns instead of 3. Exact scope of the effect is provisional.
-- **Roller:** each white match deals 1 damage to every living enemy, however many bottles the match has (Developer balance change, 2026-11-16: per-bottle damage to all enemies felt too strong).
+- **Paintball gun:** white matches deal +1 damage (so 3 whites = 2, 4 = 3). The Developer chose the effect on 2026-11-16 but not the amount; +1 per match is a provisional starting value. The first character starts with it.
+- **Brush:** strengthens direct spends: red burn lasts 5 turns instead of 3, and yellow deals 1 extra damage (4 instead of 3). Mixes are unaffected. Exact scope is provisional (the yellow bonus was added by the Developer on 2026-11-16).
+- **Roller:** white matches hit every living enemy instead of one random enemy, for the base white damage with no bonus (a 4-match deals 2 to each enemy). The Developer lowered it from per-bottle damage on 2026-11-16 because it felt too strong.
 - The other two characters start with the brush and the roller. Which weapon goes with which character is deferred to Phase 4.
 - A run has three boss fights; beating the final one wins the run. After beating a boss fight, the player chooses a new weapon, which replaces the current one (one weapon at a time). Weapons reset between runs.
 
@@ -102,13 +102,13 @@ The first playable milestone remains one battle demonstrating bottle matching, c
 - Spending and mixing leave countdowns and burn unchanged.
 - Each paint effect and mix matches the rules above, and burn refresh does not stack.
 - A shuffle changes no battle state.
-- With the paintball gun, each white bottle cleared deals 2 damage; with the brush equipped, 1; with the roller equipped, 1 per match to every living enemy, whatever the match size.
+- A white match deals 1 damage plus 1 for each white beyond the third, plus 1 with the paintball gun; the roller deals it to every living enemy and the other weapons to one random enemy.
 - While a mix is held, board swipes are rejected. Using the mix unlocks the board.
 - A turn resolves in the order given above. An enemy killed by burn does not attack.
 - An enemy attacks at countdown 0, and the player can win, lose, and restart.
 
 **Still open**
-- Balance: with the paintball gun, white deals 2 per bottle, the same as a 3-paint yellow spend. Watch whether yellow feels weak; the numbers are untested.
+- Balance: white is now weak (a 3-match deals 2 with the gun and 1 with the others, against 10-HP enemies), so yellow spends (3 damage for 3 paint, 4 with the brush), burns, and rainbow carry most damage. Enemy HP and other numbers may need retuning after playtesting.
 - How the three boss fights fit between ordinary battles in a run (run structure is outside the single-battle milestone).
 
 ## Architecture

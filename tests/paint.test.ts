@@ -3,7 +3,7 @@ import { takeTurn } from '../src/game/battle';
 import { findMatches } from '../src/game/board';
 import { mix, spend, useMix } from '../src/game/paint';
 import { createRng } from '../src/game/rng';
-import { PAINT_MAX, RAINBOW_DAMAGE, type Weapon } from '../src/game/rules';
+import { PAINT_MAX, RAINBOW_DAMAGE, whiteMatchDamage, type Weapon } from '../src/game/rules';
 import { battleOn, cycleRng, enemy, withEdits } from './helpers';
 
 const rng = createRng(1);
@@ -24,9 +24,9 @@ describe('spend', () => {
     expect(result.state.enemies[0]!.burn).toEqual({ damage: 1, turnsLeft: 3 });
   });
 
-  it('yellow deals 2 damage immediately', () => {
+  it('yellow deals 3 damage immediately', () => {
     const result = spend(state({ yellow: 3 }), 'yellow', 1);
-    expect(result.state.enemies[1]!.hp).toBe(8);
+    expect(result.state.enemies[1]!.hp).toBe(7);
     expect(result.state.paint.yellow).toBe(0);
   });
 
@@ -57,7 +57,7 @@ describe('spend', () => {
   });
 
   it('can win the battle by killing the last enemy', () => {
-    const result = spend(state({ yellow: 3 }, [enemy(0, { hp: 2 })]), 'yellow', 0);
+    const result = spend(state({ yellow: 3 }, [enemy(0, { hp: 3 })]), 'yellow', 0);
     expect(result.state.status).toBe('won');
     expect(result.events).toContainEqual({ type: 'enemyDied', enemyId: 0 });
     expect(result.events.at(-1)).toEqual({ type: 'won' });
@@ -79,9 +79,21 @@ describe('brush', () => {
     expect(result.state.enemies[0]!.burn).toEqual({ damage: 1, turnsLeft: 5 });
   });
 
-  it('does not change other paints', () => {
+  it('makes a direct yellow spend deal 1 extra damage', () => {
     const result = spend(state({ yellow: 3 }, undefined, 'brush'), 'yellow', 0);
-    expect(result.state.enemies[0]!.hp).toBe(8);
+    expect(result.state.enemies[0]!.hp).toBe(6); // 3 base plus 1
+  });
+
+  it('does not change blue', () => {
+    const result = spend(state({ blue: 3 }, undefined, 'brush'), 'blue', 0);
+    expect(result.state.enemies[0]!.countdown).toBe(5);
+  });
+
+  it('leaves red and yellow unchanged for the other weapons', () => {
+    const gun = spend(state({ yellow: 3 }, undefined, 'paintballGun'), 'yellow', 0);
+    expect(gun.state.enemies[0]!.hp).toBe(7);
+    const roller = spend(state({ red: 3 }, undefined, 'roller'), 'red', 0);
+    expect(roller.state.enemies[0]!.burn).toEqual({ damage: 1, turnsLeft: 3 });
   });
 });
 
@@ -218,6 +230,9 @@ describe('rainbow', () => {
   });
 });
 
+// Swapping (2,2) down makes four whites in row 3, columns 0-3.
+const FOUR_WHITES = withEdits({ '3,0': 'w', '3,1': 'w', '3,2': 'b', '3,3': 'w', '2,2': 'w' });
+
 describe('roller', () => {
   const rollerHits = (board: ReturnType<typeof withEdits>) => {
     const before = battleOn(board, [enemy(0, { hp: 20 }), enemy(1, { hp: 20 })], { weapon: 'roller' });
@@ -225,30 +240,38 @@ describe('roller', () => {
     return result.events.filter((e) => e.type === 'enemyDamaged');
   };
 
-  it('a white match deals 1 damage to every living enemy, not per bottle', () => {
+  it('a white match damages every living enemy, once each', () => {
     const hits = rollerHits(WHITE_BOARD); // a 3-bottle match
     expect(hits).toHaveLength(2);
     expect(hits.every((e) => e.type === 'enemyDamaged' && e.amount === 1)).toBe(true);
   });
 
-  it('still deals 1 for a longer match', () => {
-    // Swapping (2,2) down makes four whites in row 3, columns 0-3.
-    const board = withEdits({ '3,0': 'w', '3,1': 'w', '3,2': 'b', '3,3': 'w', '2,2': 'w' });
-    expect(findMatches(board)).toEqual([]);
-    const hits = rollerHits(board);
+  it('uses the same damage formula for a longer match', () => {
+    expect(findMatches(FOUR_WHITES)).toEqual([]);
+    const hits = rollerHits(FOUR_WHITES);
     expect(hits).toHaveLength(2);
-    expect(hits.every((e) => e.type === 'enemyDamaged' && e.amount === 1)).toBe(true);
+    expect(hits.every((e) => e.type === 'enemyDamaged' && e.amount === 2)).toBe(true);
   });
 });
 
-describe('weapons and white damage', () => {
+describe('white damage', () => {
+  it('is 1 for a match of three, plus 1 for each white beyond the third', () => {
+    expect([3, 4, 5, 6, 7].map((size) => whiteMatchDamage(size, 'brush'))).toEqual([1, 2, 3, 4, 5]);
+    expect([3, 4, 5, 6, 7].map((size) => whiteMatchDamage(size, 'roller'))).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('gets the paintball gun\'s bonus of 1 on every match', () => {
+    expect([3, 4, 5].map((size) => whiteMatchDamage(size, 'paintballGun'))).toEqual([2, 3, 4]);
+  });
+
   it.each([
-    ['paintballGun', 6],
-    ['brush', 3],
-  ] as const)('%s deals %i for a 3-bottle white match', (weapon, amount) => {
-    const before = battleOn(WHITE_BOARD, [enemy(0, { hp: 20 })], { weapon });
-    const result = takeTurn(before, ...SWAP, cycleRng([0.4, 0.7, 0.9]));
-    expect(result.state.enemies[0]!.hp).toBe(20 - amount);
+    ['paintballGun', 18, 17],
+    ['brush', 19, 18],
+  ] as const)('with the %s: 3 whites leave 20 HP at %i and 4 whites at %i', (weapon, afterThree, afterFour) => {
+    const three = takeTurn(battleOn(WHITE_BOARD, [enemy(0, { hp: 20 })], { weapon }), ...SWAP, cycleRng([0.4, 0.7, 0.9]));
+    expect(three.state.enemies[0]!.hp).toBe(afterThree);
+    const four = takeTurn(battleOn(FOUR_WHITES, [enemy(0, { hp: 20 })], { weapon }), ...SWAP, cycleRng([0.4, 0.7, 0.9]));
+    expect(four.state.enemies[0]!.hp).toBe(afterFour);
   });
 });
 
