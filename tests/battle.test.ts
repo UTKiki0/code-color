@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createBattle, takeTurn, type BattleEvent } from '../src/game/battle';
 import { findMatches, type Cell } from '../src/game/board';
 import { createRng } from '../src/game/rng';
-import { ENEMY_ATTACK_DAMAGE, FIRST_BATTLE_ENEMIES, PAINT_MAX, PLAYER_START_HP } from '../src/game/rules';
+import { ENEMY_ATTACK_DAMAGE, PAINT_MAX, PLAYER_START_HP, STAGES } from '../src/game/rules';
 import { battleOn, cycleRng, enemy, withEdits } from './helpers';
 
 // Refill values (blue, white, empty) chosen so refills do not make new matches.
@@ -28,7 +28,7 @@ describe('new battle', () => {
     expect(state.status).toBe('playing');
     expect(state.playerHp).toBe(PLAYER_START_HP);
     expect(state.paint).toEqual({ red: 0, yellow: 0, blue: 0 });
-    expect(state.enemies.map((e) => e.countdown)).toEqual(FIRST_BATTLE_ENEMIES.map((e) => e.countdown));
+    expect(state.enemies.map((e) => e.countdown)).toEqual(STAGES[0]!.battle.map((e) => e.countdown));
   });
 
   it('restart gives a fresh battle after the old one is over', () => {
@@ -147,6 +147,20 @@ describe('enemy attacks', () => {
     const result = takeTurn(battleOn(RED_BOARD, [enemy(0, { countdown: 2 })]), ...DOWN, refill());
     expect(result.state.playerHp).toBe(PLAYER_START_HP);
     expect(result.state.enemies[0]!.countdown).toBe(1);
+  });
+});
+
+describe('enemy attack damage', () => {
+  it('uses each enemy\'s own damage, so a boss can hit harder', () => {
+    const state = battleOn(RED_BOARD, [enemy(0, { countdown: 1, attack: 5 })]);
+    const result = takeTurn(state, ...DOWN, refill());
+    expect(result.state.playerHp).toBe(PLAYER_START_HP - 5);
+    expect(result.events).toContainEqual({ type: 'enemyAttacked', enemyId: 0, damage: 5 });
+  });
+
+  it('a new battle gives enemies the default damage unless the stage sets one', () => {
+    const state = createBattle(createRng(2), { enemies: [{ hp: 5, countdown: 3 }, { hp: 9, countdown: 5, attack: 7 }] });
+    expect(state.enemies.map((e) => e.attack)).toEqual([ENEMY_ATTACK_DAMAGE, 7]);
   });
 });
 

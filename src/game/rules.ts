@@ -34,15 +34,41 @@ export const WEAPON_WHITE_BONUS: Record<Weapon, number> = { paintballGun: 1, bru
 export const whiteMatchDamage = (size: number, weapon: Weapon): number =>
   WHITE_BASE_DAMAGE + Math.max(0, size - MIN_MATCH) * WHITE_EXTRA_DAMAGE + WEAPON_WHITE_BONUS[weapon];
 
-export const PLAYER_START_HP = 20;
-export const ENEMY_ATTACK_DAMAGE = 3;
+export const PLAYER_START_HP = 20; // also the most HP the player can have
+export const ENEMY_ATTACK_DAMAGE = 3; // a regular enemy's hit; bosses set their own
 
-// Enemies in the first battle. The countdown is in player turns (successful moves).
-export const FIRST_BATTLE_ENEMIES = [
-  { hp: 10, countdown: 4 },
-  { hp: 10, countdown: 5 },
-  { hp: 10, countdown: 6 },
+// --- Runs (checkpoint 6) ---
+
+// An enemy as described in a stage. The countdown is in player turns (successful moves).
+export interface EnemyDef {
+  hp: number;
+  countdown: number;
+  attack?: number; // damage to the player; defaults to ENEMY_ATTACK_DAMAGE
+}
+
+// A run has three stages. Each is a regular battle followed by a boss.
+// Starting values, to tune by playtesting (see spec.md).
+export interface Stage {
+  battle: EnemyDef[];
+  boss: EnemyDef;
+}
+export const STAGES: Stage[] = [
+  {
+    battle: [{ hp: 10, countdown: 4 }, { hp: 10, countdown: 5 }, { hp: 10, countdown: 6 }],
+    boss: { hp: 30, countdown: 5, attack: 4 },
+  },
+  {
+    battle: [{ hp: 12, countdown: 4 }, { hp: 12, countdown: 4 }, { hp: 12, countdown: 5 }],
+    boss: { hp: 40, countdown: 5, attack: 5 },
+  },
+  {
+    battle: [{ hp: 14, countdown: 3 }, { hp: 14, countdown: 4 }, { hp: 14, countdown: 5 }],
+    boss: { hp: 50, countdown: 5, attack: 6 },
+  },
 ];
+
+// The player heals this much after each boss (up to PLAYER_START_HP), and not after regular battles.
+export const POST_BOSS_HEAL = 10;
 
 // --- Paint use (checkpoint 4) ---
 

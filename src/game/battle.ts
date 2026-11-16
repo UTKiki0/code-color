@@ -1,8 +1,8 @@
 import { createBoard, swap, type Board, type BoardEvent, type Cell } from './board';
 import type { Rng } from './rng';
 import {
-  ENEMY_ATTACK_DAMAGE, FIRST_BATTLE_ENEMIES, PAINT_COLORS, PAINT_MAX, PLAYER_START_HP,
-  whiteMatchDamage, type Bottle, type EffectName, type MixColor, type PaintColor, type Weapon,
+  ENEMY_ATTACK_DAMAGE, PAINT_COLORS, PAINT_MAX, PLAYER_START_HP, STAGES,
+  whiteMatchDamage, type Bottle, type EffectName, type EnemyDef, type MixColor, type PaintColor, type Weapon,
 } from './rules';
 
 export interface Burn {
@@ -16,6 +16,7 @@ export interface Enemy {
   maxHp: number; // for HP bars
   startCountdown: number; // the countdown value an attack resets to
   countdown: number; // turns until this enemy attacks
+  attack: number; // damage dealt to the player when it attacks
   burn: Burn | null;
 }
 
@@ -56,20 +57,31 @@ export interface TurnResult {
   events: BattleEvent[];
 }
 
-/** A fresh battle: used to start and to restart. */
-export function createBattle(rng: Rng): BattleState {
+/** What a battle starts with. Defaults describe the very first battle of a run. */
+export interface BattleSetup {
+  enemies?: EnemyDef[];
+  playerHp?: number;
+  paint?: Record<PaintColor, number>;
+  weapon?: Weapon;
+  heldMix?: MixColor | null;
+}
+
+/** A fresh battle: used to start and to restart, and by runs to start each battle. */
+export function createBattle(rng: Rng, setup: BattleSetup = {}): BattleState {
+  const enemies = setup.enemies ?? STAGES[0]!.battle;
   return {
     board: createBoard(rng),
-    paint: { red: 0, yellow: 0, blue: 0 },
-    playerHp: PLAYER_START_HP,
-    weapon: 'paintballGun',
-    heldMix: null,
-    enemies: FIRST_BATTLE_ENEMIES.map((e, id) => ({
+    paint: { ...(setup.paint ?? { red: 0, yellow: 0, blue: 0 }) },
+    playerHp: setup.playerHp ?? PLAYER_START_HP,
+    weapon: setup.weapon ?? 'paintballGun',
+    heldMix: setup.heldMix ?? null,
+    enemies: enemies.map((e, id) => ({
       id,
       hp: e.hp,
       maxHp: e.hp,
       startCountdown: e.countdown,
       countdown: e.countdown,
+      attack: e.attack ?? ENEMY_ATTACK_DAMAGE,
       burn: null,
     })),
     status: 'playing',
@@ -178,8 +190,8 @@ export function takeTurn(state: BattleState, a: Cell, b: Cell, rng: Rng): TurnRe
   // 5. Enemies at zero attack, then reset their countdown.
   for (const enemy of enemies) {
     if (enemy.countdown > 0) continue;
-    playerHp = Math.max(0, playerHp - ENEMY_ATTACK_DAMAGE);
-    events.push({ type: 'enemyAttacked', enemyId: enemy.id, damage: ENEMY_ATTACK_DAMAGE });
+    playerHp = Math.max(0, playerHp - enemy.attack);
+    events.push({ type: 'enemyAttacked', enemyId: enemy.id, damage: enemy.attack });
     enemy.countdown = enemy.startCountdown;
   }
 
