@@ -1,20 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import { takeTurn, type BattleState } from '../src/game/battle';
-import { continueRun, createRun, updateBattle, type RunState } from '../src/game/run';
+import { chooseWeapon, continueRun, createRun, drawWeaponOffer, updateBattle, type RunState } from '../src/game/run';
 import { createRng } from '../src/game/rng';
-import { PLAYER_START_HP, POST_BOSS_HEAL, STAGES } from '../src/game/rules';
+import { PLAYER_START_HP, POST_BOSS_HEAL, STAGES, WEAPONS, type Weapon } from '../src/game/rules';
 import { cycleRng, withEdits } from './helpers';
 
 const rng = createRng(1);
+const update = (run: RunState, battle: BattleState) => updateBattle(run, battle, rng);
+
+// Leaves a cleared battle: continues, or after a boss takes the first offered weapon.
+const moveOn = (run: RunState): RunState =>
+  run.phase === 'choosingWeapon' ? chooseWeapon(run, run.weaponOffer![0]!, rng) : continueRun(run, rng);
 
 // The run with the current battle replaced by a won one (all enemies dead), as if the player had won it.
 const winBattle = (run: RunState, over: Partial<BattleState> = {}): RunState =>
-  updateBattle(run, { ...run.battle, enemies: [], status: 'won', ...over });
+  update(run, { ...run.battle, enemies: [], status: 'won', ...over });
 
 // Wins the current battle and continues, `times` times.
 const advance = (run: RunState, times: number, over: Partial<BattleState> = {}): RunState => {
   let current = run;
-  for (let i = 0; i < times; i++) current = continueRun(winBattle(current, over), rng);
+  for (let i = 0; i < times; i++) current = moveOn(winBattle(current, over));
   return current;
 };
 
@@ -32,24 +37,24 @@ describe('a new run', () => {
 describe('run phases', () => {
   it('stays fighting while the battle is being played', () => {
     const run = createRun(rng);
-    expect(updateBattle(run, { ...run.battle, playerHp: 12 }).phase).toBe('fighting');
+    expect(update(run, { ...run.battle, playerHp: 12 }).phase).toBe('fighting');
   });
 
   it('is cleared when a regular battle is won, and lost when the player has no HP', () => {
     const run = createRun(rng);
     expect(winBattle(run).phase).toBe('cleared');
-    expect(updateBattle(run, { ...run.battle, playerHp: 0, status: 'lost' }).phase).toBe('lost');
+    expect(update(run, { ...run.battle, playerHp: 0, status: 'lost' }).phase).toBe('lost');
   });
 
   it('ignores battle updates once the run is not fighting', () => {
-    const lost = updateBattle(createRun(rng), { ...createRun(rng).battle, status: 'lost' });
-    expect(updateBattle(lost, { ...lost.battle, status: 'won', enemies: [] })).toBe(lost);
+    const lost = update(createRun(rng), { ...createRun(rng).battle, status: 'lost' });
+    expect(update(lost, { ...lost.battle, status: 'won', enemies: [] })).toBe(lost);
   });
 
   it('does not continue unless the battle was cleared', () => {
     const fighting = createRun(rng);
     expect(continueRun(fighting, rng)).toBe(fighting);
-    const lost = updateBattle(fighting, { ...fighting.battle, status: 'lost' });
+    const lost = update(fighting, { ...fighting.battle, status: 'lost' });
     expect(continueRun(lost, rng)).toBe(lost);
   });
 
@@ -59,8 +64,8 @@ describe('run phases', () => {
     const won = winBattle(atFinalBoss);
     expect(won.phase).toBe('won');
     expect(continueRun(won, rng)).toBe(won);
-    // Beating the first stage's boss does not win the run.
-    expect(winBattle(advance(createRun(rng), 1)).phase).toBe('cleared');
+    // Beating the first stage's boss does not win the run; it leads to a weapon choice.
+    expect(winBattle(advance(createRun(rng), 1)).phase).toBe('choosingWeapon');
   });
 });
 
@@ -72,7 +77,7 @@ describe('the order of encounters', () => {
       seen.push(`${run.stage}:${run.encounter}:${run.battle.enemies.length}`);
       const expected = run.encounter === 'boss' ? [STAGES[run.stage]!.boss] : STAGES[run.stage]!.battle;
       expect(run.battle.enemies.map((e) => e.hp)).toEqual(expected.map((e) => e.hp));
-      run = continueRun(winBattle(run), rng);
+      run = moveOn(winBattle(run));
     }
     expect(seen).toEqual(['0:battle:3', '0:boss:1', '1:battle:3', '1:boss:1', '2:battle:3', '2:boss:1']);
   });
@@ -119,14 +124,14 @@ describe('what carries over', () => {
 
   it('heals 10 after a boss', () => {
     const atBoss = advance(createRun(rng), 1);
-    const next = continueRun(winBattle(atBoss, { playerHp: 5 }), rng);
+    const next = moveOn(winBattle(atBoss, { playerHp: 5 }));
     expect(next).toMatchObject({ stage: 1, encounter: 'battle' });
     expect(next.battle.playerHp).toBe(5 + POST_BOSS_HEAL);
   });
 
   it('never heals above the maximum', () => {
     const atBoss = advance(createRun(rng), 1);
-    const next = continueRun(winBattle(atBoss, { playerHp: 15 }), rng);
+    const next = moveOn(winBattle(atBoss, { playerHp: 15 }));
     expect(next.battle.playerHp).toBe(PLAYER_START_HP);
   });
 
@@ -140,10 +145,92 @@ describe('what carries over', () => {
 
 describe('starting a new run', () => {
   it('after a lost run gives a fresh run, with HP, paint, and weapon reset', () => {
-    const lost = updateBattle(createRun(rng), { ...createRun(rng).battle, status: 'lost', weapon: 'roller', playerHp: 0 });
+    const lost = update(createRun(rng), { ...createRun(rng).battle, status: 'lost', weapon: 'roller', playerHp: 0 });
     expect(lost.phase).toBe('lost');
     const fresh = createRun(rng);
     expect(fresh).toMatchObject({ stage: 0, encounter: 'battle', phase: 'fighting' });
     expect(fresh.battle).toMatchObject({ playerHp: PLAYER_START_HP, weapon: 'paintballGun', paint: { red: 0, yellow: 0, blue: 0 } });
+  });
+});
+
+describe('the weapon offer', () => {
+  const afterFirstBoss = () => winBattle(advance(createRun(rng), 1));
+
+  it('is drawn after each of the first two bosses', () => {
+    const first = afterFirstBoss();
+    expect(first.phase).toBe('choosingWeapon');
+    expect(first.weaponOffer).toHaveLength(2);
+    const secondBoss = advance(createRun(rng), 3);
+    expect(secondBoss).toMatchObject({ stage: 1, encounter: 'boss' });
+    expect(winBattle(secondBoss).phase).toBe('choosingWeapon');
+  });
+
+  it('is not drawn after a regular battle or after the final boss', () => {
+    const regular = winBattle(createRun(rng));
+    expect(regular.phase).toBe('cleared');
+    expect(regular.weaponOffer).toBeNull();
+    const finalBoss = winBattle(advance(createRun(rng), STAGES.length * 2 - 1));
+    expect(finalBoss.phase).toBe('won');
+    expect(finalBoss.weaponOffer).toBeNull();
+  });
+
+  it('offers two different, real weapons', () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const offer = drawWeaponOffer(createRng(seed));
+      expect(offer).toHaveLength(2);
+      expect(new Set(offer).size).toBe(2);
+      for (const weapon of offer) expect(WEAPONS).toContain(weapon);
+    }
+  });
+
+  it('draws from all weapons, so any pair, including the held weapon, can come up', () => {
+    const pairs = new Set<string>();
+    const seen = new Set<Weapon>();
+    for (let seed = 1; seed <= 200; seed++) {
+      const offer = drawWeaponOffer(createRng(seed));
+      pairs.add([...offer].sort().join('+'));
+      offer.forEach((w) => seen.add(w));
+    }
+    expect(seen.size).toBe(WEAPONS.length);
+    expect(pairs.size).toBe(3); // all three possible pairs
+  });
+
+  it('is repeatable with the same seed', () => {
+    expect(drawWeaponOffer(createRng(7))).toEqual(drawWeaponOffer(createRng(7)));
+  });
+
+  it('cannot be skipped: continueRun does nothing while a weapon must be chosen', () => {
+    const choosing = afterFirstBoss();
+    expect(continueRun(choosing, rng)).toBe(choosing);
+  });
+
+  it('is cleared and the chosen weapon replaces the current one, moving on to the next battle', () => {
+    const choosing = winBattle(advance(createRun(rng), 1), { weapon: 'paintballGun', playerHp: 5 });
+    const pick = choosing.weaponOffer!.find((w) => w !== 'paintballGun') ?? choosing.weaponOffer![0]!;
+    const next = chooseWeapon(choosing, pick, rng);
+    expect(next).toMatchObject({ stage: 1, encounter: 'battle', phase: 'fighting', weaponOffer: null });
+    expect(next.battle.weapon).toBe(pick);
+    expect(next.battle.playerHp).toBe(5 + POST_BOSS_HEAL); // the heal after a boss still happens
+  });
+
+  it('keeps the held weapon when the player chooses it', () => {
+    // Find a seed whose offer includes the held paintball gun.
+    for (let seed = 1; seed <= 50; seed++) {
+      const r = createRng(seed);
+      const run = updateBattle(advance(createRun(r), 1), { ...advance(createRun(r), 1).battle, enemies: [], status: 'won' }, r);
+      if (run.weaponOffer?.includes('paintballGun')) {
+        expect(chooseWeapon(run, 'paintballGun', r).battle.weapon).toBe('paintballGun');
+        return;
+      }
+    }
+    throw new Error('no seed offered the held weapon');
+  });
+
+  it('ignores a weapon that was not offered, and a choice made at the wrong time', () => {
+    const choosing = afterFirstBoss();
+    const notOffered = WEAPONS.find((w) => !choosing.weaponOffer!.includes(w))!;
+    expect(chooseWeapon(choosing, notOffered, rng)).toBe(choosing);
+    const fighting = createRun(rng);
+    expect(chooseWeapon(fighting, 'brush', rng)).toBe(fighting);
   });
 });

@@ -1,6 +1,7 @@
 import type { BattleState, Enemy } from '../game/battle';
 import type { Cell } from '../game/board';
 import { GAME_TITLE } from '../game/title';
+import { WEAPON_INFO, WEAPON_LIST } from './weapons';
 import { PAINT_COLORS, PAINT_MAX, PLAYER_START_HP, type Bottle, type MixColor, type PaintColor, type Weapon } from '../game/rules';
 
 // Drawing only: this file turns a BattleState into DOM and decides nothing about the rules.
@@ -20,14 +21,13 @@ export interface ViewOptions {
   testControls?: boolean; // show the weapon dropdown (a test setting)
   restartLabel?: string;
   // A screen over the game: between battles, run won or lost, or battle won or lost.
-  overlay?: { title: string; lines: string[]; button: string; action: 'continue' | 'restart' };
+  overlay?: {
+    title: string;
+    lines: string[];
+    button?: { label: string; action: 'continue' | 'restart' };
+    choices?: { weapon: Weapon; label: string; description: string }[]; // weapon buttons after a boss
+  };
 }
-
-const WEAPONS: { id: Weapon; label: string }[] = [
-  { id: 'paintballGun', label: 'Paintball gun' },
-  { id: 'brush', label: 'Brush' },
-  { id: 'roller', label: 'Roller' },
-];
 
 const cap = (word: string) => word[0]!.toUpperCase() + word.slice(1);
 
@@ -138,7 +138,7 @@ export function renderBattle(root: HTMLElement, state: BattleState, view: ViewOp
   title.innerHTML = `<span class="code">Code:</span> <span class="color">${GAME_TITLE.split(': ')[1] ?? GAME_TITLE}</span>`;
   const controls = el('div', 'controls');
   const select = el('select', '', { 'data-weapon': '', 'aria-label': 'Weapon (test setting)' });
-  for (const w of WEAPONS) {
+  for (const w of WEAPON_LIST) {
     const option = el('option', '', { value: w.id }, w.label);
     if (w.id === state.weapon) option.selected = true;
     select.append(option);
@@ -155,7 +155,7 @@ export function renderBattle(root: HTMLElement, state: BattleState, view: ViewOp
 
   const player = el('section', `player${view.playerHit ? ' hit' : ''}`, { 'aria-label': 'Player' });
   const row = el('div', 'row');
-  row.append(el('span', '', {}, 'You'), el('span', '', {}, `HP ${state.playerHp}/${PLAYER_START_HP}`));
+  row.append(el('span', '', {}, `You (${WEAPON_INFO[state.weapon].label})`), el('span', '', {}, `HP ${state.playerHp}/${PLAYER_START_HP}`));
   const bar = el('div', 'bar hp');
   bar.append(el('div', 'fill', { style: `width:${(state.playerHp / PLAYER_START_HP) * 100}%` }));
   player.append(row, bar);
@@ -170,7 +170,19 @@ export function renderBattle(root: HTMLElement, state: BattleState, view: ViewOp
     const overlay = el('div', 'overlay', { role: 'dialog', 'aria-label': view.overlay.title });
     overlay.append(el('h2', '', {}, view.overlay.title));
     for (const line of view.overlay.lines) overlay.append(el('p', '', {}, line));
-    overlay.append(el('button', '', { [view.overlay.action === 'continue' ? 'data-continue' : 'data-restart']: '' }, view.overlay.button));
+    if (view.overlay.choices) {
+      const choices = el('div', 'choices');
+      for (const c of view.overlay.choices) {
+        const button = el('button', 'choice', { 'data-choose': c.weapon });
+        button.append(el('strong', '', {}, c.label), el('span', '', {}, c.description));
+        choices.append(button);
+      }
+      overlay.append(choices);
+    }
+    if (view.overlay.button) {
+      const attr = view.overlay.button.action === 'continue' ? 'data-continue' : 'data-restart';
+      overlay.append(el('button', '', { [attr]: '' }, view.overlay.button.label));
+    }
     game.append(overlay);
   }
   root.replaceChildren(game);

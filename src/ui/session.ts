@@ -2,11 +2,12 @@ import { createBattle, takeTurn, type BattleEvent, type BattleState, type TurnRe
 import type { Cell } from '../game/board';
 import { mix, spend, useMix } from '../game/paint';
 import { createRng, type Rng } from '../game/rng';
-import { continueRun, createRun, updateBattle, type RunState } from '../game/run';
+import { chooseWeapon, continueRun, createRun, updateBattle, type RunState } from '../game/run';
 import { PAINT_MAX, PLAYER_START_HP, POST_BOSS_HEAL, SPEND_COST, STAGES, type PaintColor } from '../game/rules';
 import { floatOverEnemy, floatOverPlayer } from './fx';
 import { attachInput } from './input';
 import { playMove } from './replay';
+import { WEAPON_INFO } from './weapons';
 import { renderBattle, type ViewOptions } from './view';
 
 // Holds the current run (or a single test battle), sends commands to game/, and plays the
@@ -89,7 +90,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
   /** Records a new battle state, and in a run lets the run notice a win or loss. */
   const setBattle = (next: BattleState) => {
     state = next;
-    if (run) run = updateBattle(run, next);
+    if (run) run = updateBattle(run, next, rng);
   };
 
   // Options that stay the same for every frame of a battle, including the replay frames.
@@ -104,20 +105,19 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
   const overlay = (): ViewOptions['overlay'] => {
     if (!run) {
       if (state.status === 'playing') return undefined;
-      return { title: state.status === 'won' ? 'You won!' : 'You lost', lines: [], button: 'Play again', action: 'restart' };
+      return { title: state.status === 'won' ? 'You won!' : 'You lost', lines: [], button: { label: 'Play again', action: 'restart' } };
     }
     if (run.phase === 'won') {
-      return { title: 'Run won!', lines: ['You beat all three bosses.'], button: 'New run', action: 'restart' };
+      return { title: 'Run won!', lines: ['You beat all three bosses.'], button: { label: 'New run', action: 'restart' } };
     }
     if (run.phase === 'lost') {
       return {
         title: 'Run lost',
         lines: [`You fell in stage ${run.stage + 1} (${run.encounter}).`],
-        button: 'New run',
-        action: 'restart',
+        button: { label: 'New run', action: 'restart' },
       };
     }
-    if (run.phase === 'cleared') {
+    if (run.phase === 'cleared' || run.phase === 'choosingWeapon') {
       const afterBoss = run.encounter === 'boss';
       const paint = state.paint;
       const lines = [
@@ -128,7 +128,17 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
       ];
       // A held mix is discarded when the battle ends, so say so rather than lose it silently.
       if (state.heldMix) lines.push(`Your ${state.heldMix} mix was not used and will be lost.`);
-      return { title: afterBoss ? 'Boss defeated!' : 'Battle cleared!', lines, button: 'Continue', action: 'continue' };
+      const title = afterBoss ? 'Boss defeated!' : 'Battle cleared!';
+      if (run.phase === 'choosingWeapon') {
+        // The weapon already held is labeled "Keep"; choosing it changes nothing.
+        const choices = (run.weaponOffer ?? []).map((weapon) => ({
+          weapon,
+          label: weapon === state.weapon ? `Keep: ${WEAPON_INFO[weapon].label}` : WEAPON_INFO[weapon].label,
+          description: WEAPON_INFO[weapon].description,
+        }));
+        return { title, lines: [...lines, 'Choose your next weapon:'], choices };
+      }
+      return { title, lines, button: { label: 'Continue', action: 'continue' } };
     }
     return undefined;
   };
@@ -209,6 +219,18 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
       const healed = state.playerHp - hpBefore;
       const where = `Stage ${run.stage + 1}: ${run.encounter}.`;
       message = healed > 0 ? `${where} Healed ${healed} HP.` : where;
+      draw();
+    },
+
+    chooseWeapon(weapon) {
+      if (!run || run.phase !== 'choosingWeapon') return;
+      const hpBefore = state.playerHp;
+      const previous = state.weapon;
+      run = chooseWeapon(run, weapon, rng);
+      state = run.battle;
+      const healed = state.playerHp - hpBefore;
+      const weaponNote = weapon === previous ? `Kept the ${WEAPON_INFO[weapon].label}.` : `Now using the ${WEAPON_INFO[weapon].label}.`;
+      message = `Stage ${run.stage + 1}: ${run.encounter}. ${healed > 0 ? `Healed ${healed} HP. ` : ''}${weaponNote}`;
       draw();
     },
 

@@ -127,7 +127,7 @@ button { cursor: pointer; font-weight: 700; }
 .fx-info { font-size: 1rem; }
 
 /* ---- Overlay ---- */
-.overlay { position: absolute; inset: 0; background: rgba(253, 243, 228, .92); display: grid; place-content: center; gap: 12px; text-align: center; border-radius: var(--radius); z-index: 5; }
+.overlay { position: absolute; inset: 0; background: rgba(253, 243, 228, .97); display: grid; place-content: center; gap: 12px; text-align: center; border-radius: var(--radius); z-index: 5; }
 .overlay h2 { margin: 0; font-size: 1.8rem; }
 
 /* ---- Animation (turned off by the reduced-motion rule below) ---- */
@@ -166,3 +166,9 @@ button { cursor: pointer; font-weight: 700; }
 .enemy.boss h2 { font-size: 1.2rem; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); }
 .enemy.boss .bar { height: 14px; }
 .overlay p { margin: 0; max-width: 28ch; justify-self: center; }
+
+/* ---- Weapon choice (after a boss) ---- */
+.choices { display: grid; gap: 8px; width: min(100%, 320px); justify-self: center; }
+.choice { display: grid; gap: 2px; text-align: left; padding: 10px 12px; min-height: 64px; }
+.choice strong { font-size: 1rem; }
+.choice span { font-weight: 400; font-size: .85rem; }

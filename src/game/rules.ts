@@ -34,6 +34,11 @@ export const WEAPON_WHITE_BONUS: Record<Weapon, number> = { paintballGun: 1, bru
 export const whiteMatchDamage = (size: number, weapon: Weapon): number =>
   WHITE_BASE_DAMAGE + Math.max(0, size - MIN_MATCH) * WHITE_EXTRA_DAMAGE + WEAPON_WHITE_BONUS[weapon];
 
+// Every weapon, and how many are offered after a boss. The offer is drawn from all weapons, so it
+// can include the weapon the player already holds.
+export const WEAPONS: Weapon[] = ['paintballGun', 'brush', 'roller'];
+export const WEAPON_OFFER_SIZE = 2;
+
 export const PLAYER_START_HP = 20; // also the most HP the player can have
 export const ENEMY_ATTACK_DAMAGE = 3; // a regular enemy's hit; bosses set their own
 
