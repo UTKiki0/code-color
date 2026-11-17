@@ -1,5 +1,13 @@
-/* Code: Color - placeholder visuals (flat colors and CSS shapes).
-   Colors and sizes are variables defined once here. */
+/* Code: Color - visuals. Colors and sizes are variables defined once here.
+
+   PIXEL ART SCALE (one rate for all of it): every sprite is drawn at --pixel screen pixels per
+   art pixel, where --pixel = --tile / 32. The sprite sheet's tiles are 32 x 32 art pixels, and
+   --tile is the size of one board cell, which is worked out from the width of the game (below).
+   So bottles on the board, the paint storage, the held mix, and the dragged picture are all the
+   same size. Art made for other places (characters, bosses) should be sized as its width in art
+   pixels times --pixel, so it scales at the same rate. Measured: --tile is about 45 pixels
+   (a scale of 1.4) on a 390 pixel wide phone, 40 (1.25) at 360, 35 (1.1) at 320, 51 (1.6) at 430,
+   and 57 (1.8) at the widest. See spec.md, "Pictures", and art/README.md. */
 :root {
   --bg: #fdf3e4;
   --panel: #ffffff;
@@ -19,6 +27,13 @@
 
   --gap: 4px;
   --radius: 14px;
+
+  /* Sizes. The game is as wide as the screen allows (between 320 and 440 pixels, and shorter
+     screens get a narrower game so the board fits), and the board's 7 columns share what is left
+     after its padding, border, and 6 gaps. */
+  --game-w: min(calc(100vw - 32px), clamp(320px, calc(100dvh - 450px), 440px));
+  --tile: calc((var(--game-w) - (var(--gap) * 6 + 16px)) / 7); /* one board cell, and one sprite tile */
+  --pixel: calc(var(--tile) / 32); /* screen pixels per art pixel: the one scale for all pixel art */
 }
 
 * { box-sizing: border-box; }
@@ -32,7 +47,7 @@ body {
 }
 
 #app { display: flex; justify-content: center; padding: 12px 16px 32px; }
-.game { width: 100%; max-width: clamp(320px, calc(100dvh - 450px), 440px); display: flex; flex-direction: column; gap: 12px; position: relative; }
+.game { width: var(--game-w); display: flex; flex-direction: column; gap: 12px; position: relative; }
 
 /* ---- Top bar ---- */
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
@@ -77,7 +92,7 @@ button { cursor: pointer; font-weight: 700; }
 .store.full { border-color: var(--accent); box-shadow: 0 0 0 3px #fed7aa; }
 .held { border-color: var(--accent); background: #fff7ed; cursor: grab; }
 .held-empty { border-style: dashed; color: var(--muted); font-weight: 600; }
-.store .shape, .held .shape { width: 46px; height: 46px; }
+.store .shape, .held .shape { width: var(--tile); height: var(--tile); }
 .meter { width: 80%; height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; }
 .meter > i { display: block; height: 100%; background: var(--ink); }
 
@@ -87,7 +102,7 @@ button { cursor: pointer; font-weight: 700; }
 
 /* ---- Board ---- */
 .board {
-  display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--gap); width: 100%;
+  display: grid; grid-template-columns: repeat(7, var(--tile)); gap: var(--gap); width: 100%;
   background: var(--panel); border: 2px solid var(--ink); border-radius: var(--radius); padding: 6px;
   touch-action: none; user-select: none; -webkit-user-select: none;
   overflow: hidden; /* new bottles fall in from above the board edge */
@@ -98,7 +113,7 @@ button { cursor: pointer; font-weight: 700; }
 .cell.blot { animation: blot .8s ease-out; }
 
 /* ---- Bottle pictures: one sprite sheet (art/Paint bottle.png), 4 x 4 tiles of 32 pixels.
-   Each type picks its tile with --col and --row. The sheet is scaled up with hard pixel edges. ---- */
+   Each type picks its tile with --col and --row. A tile is shown at --tile (see the scale note at the top). ---- */
 .shape {
   width: 100%; height: 100%;
   background: url("../../art/Paint bottle.png") no-repeat;
@@ -129,14 +144,13 @@ button { cursor: pointer; font-weight: 700; }
 .bottle-green { --c: var(--green); }
 .bottle-purple { --c: var(--purple); }
 .bottle-orange { --c: var(--orange); }
-.cell .shape { width: 118%; height: 118%; } /* the pictures have empty margins, so they are drawn a little larger than the cell */
 .cell[data-item] { cursor: pointer; } /* a tap uses an item */
 .cell.made .shape { animation: made .5s ease-out; }
 @keyframes made { 0% { transform: scale(.3); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
 
 /* ---- Dragging ---- */
 #app.dragging [data-enemy-id], #app.dragging [data-paint] { outline: 3px dashed var(--accent); outline-offset: 2px; }
-.ghost { position: fixed; width: 56px; height: 56px; transform: translate(-50%, -50%); pointer-events: none; z-index: 20; opacity: .9; }
+.ghost { position: fixed; width: var(--tile); height: var(--tile); transform: translate(-50%, -50%); pointer-events: none; z-index: 20; opacity: .9; }
 
 /* ---- Floating numbers and combo text (spawned by fx.ts) ---- */
 .fx {
