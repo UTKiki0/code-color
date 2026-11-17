@@ -12,6 +12,7 @@ export interface ViewOptions {
   popCells?: Cell[]; // bottles to show shrinking away
   falls?: Map<string, number>; // rows each bottle falls, keyed by its new "row,col"
   shake?: Cell[]; // cells to shake (rejected swap)
+  blotCells?: Cell[]; // bottles a boss just turned into empties
   speed?: number; // 1 = normal; smaller makes this frame's animations shorter
   attackedEnemies?: number[];
   playerHit?: boolean;
@@ -52,12 +53,19 @@ const ABILITY_LABELS: Record<BossAbility, string> = {
   paintThief: 'Paint thief', inkBlot: 'Ink blot', shield: 'Shield', heal: 'Heal',
 };
 
+/** The ability line on a boss card. A shield shows up or down; the others show their countdown. */
+function abilityText(ability: NonNullable<Enemy['ability']>): string {
+  const label = ABILITY_LABELS[ability.kind];
+  if (ability.kind !== 'shield') return `${label}: acts in ${ability.countdown}`;
+  return ability.countdown === 0 ? `${label}: up (halves white damage)` : `${label} broken: back in ${ability.countdown}`;
+}
+
 function enemyCard(enemy: Enemy, view: ViewOptions): HTMLElement {
   const name = view.bossFight ? 'Boss' : `Canvas ${enemy.id + 1}`;
-  const card = el('div', `enemy${view.bossFight ? ' boss' : ''}${view.attackedEnemies?.includes(enemy.id) ? ' attack' : ''}`, {
+  const card = el('div', `enemy${view.bossFight ? ' boss' : ''}${enemy.ability?.kind === 'shield' && enemy.ability.countdown === 0 ? ' shielded' : ''}${view.attackedEnemies?.includes(enemy.id) ? ' attack' : ''}`, {
     'data-enemy-id': String(enemy.id),
     role: 'group',
-    'aria-label': `${name}: ${Math.max(0, enemy.hp)} of ${enemy.maxHp} HP, attacks in ${enemy.countdown} turns${enemy.ability ? `, ${ABILITY_LABELS[enemy.ability.kind]} in ${enemy.ability.countdown}` : ''}`,
+    'aria-label': `${name}: ${Math.max(0, enemy.hp)} of ${enemy.maxHp} HP, attacks in ${enemy.countdown} turns${enemy.ability ? `, ${abilityText(enemy.ability)}` : ''}`,
   });
   card.append(el('h2', '', {}, name));
   const bar = el('div', 'bar');
@@ -67,9 +75,9 @@ function enemyCard(enemy: Enemy, view: ViewOptions): HTMLElement {
   card.append(el('div', 'countdown', {}, `Attacks in ${enemy.countdown}`));
   if (enemy.ability) {
     // Pulses when the ability is one turn away, so the player has a warning.
-    const label = ABILITY_LABELS[enemy.ability.kind];
-    const n = enemy.ability.countdown;
-    card.append(el('div', `ability${n === 1 ? ' soon' : ''}`, {}, `${label}: acts in ${n}`));
+    // For a shield, "one turn away" means it returns next turn.
+    const soon = enemy.ability.countdown === 1;
+    card.append(el('div', `ability${soon ? ' soon' : ''}`, {}, abilityText(enemy.ability)));
   }
   card.append(el('div', 'status', {}, enemy.burn ? `Burn ${enemy.burn.damage} x ${enemy.burn.turnsLeft}` : ''));
   return card;
@@ -86,7 +94,7 @@ function board(state: BattleState, view: ViewOptions): HTMLElement {
       const fall = view.falls?.get(`${row},${col}`);
       const cell = el(
         'div',
-        `cell bottle-${bottle}${has(view.popCells, row, col) ? ' pop' : ''}${has(view.shake, row, col) ? ' shake' : ''}${fall ? ' fall' : ''}`,
+        `cell bottle-${bottle}${has(view.popCells, row, col) ? ' pop' : ''}${has(view.shake, row, col) ? ' shake' : ''}${has(view.blotCells, row, col) ? ' blot' : ''}${fall ? ' fall' : ''}`,
         { 'data-row': String(row), 'data-col': String(col), role: 'gridcell', 'aria-label': `${bottle} bottle, row ${row + 1}, column ${col + 1}` },
       );
       if (fall) cell.style.setProperty('--fall', String(fall));

@@ -56,10 +56,10 @@ export interface EnemyDef {
 
 export type BossAbility = 'paintThief' | 'inkBlot' | 'shield' | 'heal';
 export const BOSS_ABILITIES: BossAbility[] = ['paintThief', 'inkBlot', 'shield', 'heal'];
-// Abilities built so far. A run draws from these; this becomes BOSS_ABILITIES when all four exist.
-export const BUILT_ABILITIES: BossAbility[] = ['heal', 'paintThief'];
 export const ABILITY_COUNTDOWN = 3; // turns between uses, counted from the start of the fight
 export const BOSS_HEAL_AMOUNT = 4;
+export const SHIELD_BREAK_TURNS = 3; // turns a shield stays down after paint hits the boss
+export const INK_BLOT_COUNT = 4; // bottles turned into empties
 export const PAINT_THIEF_AMOUNT = 3; // paint taken from the player's fullest bottle
 
 // A run has three stages. Each is a regular battle followed by a boss.

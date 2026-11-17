@@ -42,6 +42,9 @@ function describe(events: BattleEvent[], bossFight: boolean): string {
     else if (e.type === 'enemyDied') parts.push(`${enemyName(e.enemyId)} finished!`);
     else if (e.type === 'enemyAttacked') parts.push(`${enemyName(e.enemyId)} hit you for ${e.damage}`);
     else if (e.type === 'paintStolen') parts.push(`${enemyName(e.enemyId)} stole ${e.amount} ${e.color}`)
+    else if (e.type === 'inkBlotted') parts.push(`${enemyName(e.enemyId)} blotted ${e.cells.length} bottles`)
+    else if (e.type === 'shieldBroken') parts.push(`${enemyName(e.enemyId)}'s shield broke`)
+    else if (e.type === 'shieldRestored') parts.push(`${enemyName(e.enemyId)}'s shield is back`)
     else if (e.type === 'bossHealed') parts.push(`Boss healed ${e.amount} HP`);
     else if (e.type === 'shuffled') parts.push('Board shuffled');
   }
@@ -51,7 +54,9 @@ function describe(events: BattleEvent[], bossFight: boolean): string {
 /** Attack flashes to show with the final state of a move. */
 function attackEffects(events: BattleEvent[]): Partial<ViewOptions> {
   const attacks = events.filter((e) => e.type === 'enemyAttacked');
+  const blots = events.flatMap((e) => (e.type === 'inkBlotted' ? e.cells : []));
   return {
+    blotCells: blots.length > 0 ? blots : undefined,
     attackedEnemies: attacks.map((e) => (e.type === 'enemyAttacked' ? e.enemyId : -1)),
     playerHit: attacks.length > 0,
   };
@@ -70,6 +75,14 @@ function floatCommandDamage(events: BattleEvent[]): void {
 function floatThefts(events: BattleEvent[]): void {
   for (const e of events) {
     if (e.type === 'paintStolen') floatOverPlayer(`-${e.amount} ${e.color}`, 'damage');
+  }
+}
+
+/** Short notes over the boss when its shield breaks or returns. */
+function floatShield(events: BattleEvent[]): void {
+  for (const e of events) {
+    if (e.type === 'shieldBroken') floatOverEnemy(e.enemyId, 'Shield broken!', 'info');
+    else if (e.type === 'shieldRestored') floatOverEnemy(e.enemyId, 'Shield back', 'info');
   }
 }
 
@@ -100,7 +113,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
       message = 'Stage 1: battle. Swipe a bottle to match three. White bottles hurt enemies; paint can be spent or mixed.';
     } else {
       const stage = STAGES[mode.stage - 1]!;
-      const ability = options.ability ?? drawBossAbilities(rng, 1)[0] ?? undefined;
+      const ability = options.ability ?? drawBossAbilities(rng, 1)[0];
       const enemies = mode.kind === 'boss' ? [{ ...stage.boss, ability }] : stage.battle;
       state = createBattle(rng, { enemies, paint: options.fullPaint ? FULL_PAINT : undefined });
       message = `Test ${mode.kind}, stage ${mode.stage}. Swipe a bottle to match three.`;
@@ -179,6 +192,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
     message = describe(result.events, baseView().bossFight === true);
     draw();
     floatCommandDamage(result.events);
+    floatShield(result.events);
   };
 
   attachInput(root, {
@@ -199,6 +213,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
       message = describe(result.events, baseView().bossFight === true);
       draw(attackEffects(result.events));
       floatHeals(result.events);
+      floatShield(result.events);
       floatThefts(result.events);
       if (!reducedMotion()) {
         const hits = result.events.filter((e) => e.type === 'enemyAttacked');

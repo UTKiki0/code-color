@@ -1,6 +1,6 @@
 import { createBattle, type BattleState } from './battle';
 import type { Rng } from './rng';
-import { BUILT_ABILITIES, POST_BOSS_HEAL, PLAYER_START_HP, STAGES, WEAPONS, WEAPON_OFFER_SIZE, type BossAbility, type Weapon } from './rules';
+import { BOSS_ABILITIES, POST_BOSS_HEAL, PLAYER_START_HP, STAGES, WEAPONS, WEAPON_OFFER_SIZE, type BossAbility, type Weapon } from './rules';
 
 // A run: three stages, each a regular battle then a boss. This file decides which
 // battle comes next and what carries over. The battle itself is played in battle.ts.
@@ -20,24 +20,19 @@ export interface RunState {
   battle: BattleState;
   phase: RunPhase;
   weaponOffer: Weapon[] | null; // the weapons to choose from, only while choosingWeapon
-  bossAbilities: (BossAbility | null)[]; // each stage's boss ability, fixed for the run
+  bossAbilities: BossAbility[]; // each stage's boss ability, fixed for the run
 }
 
-const enemiesFor = (stage: number, encounter: Encounter, bossAbilities: (BossAbility | null)[]) =>
+const enemiesFor = (stage: number, encounter: Encounter, bossAbilities: BossAbility[]) =>
   encounter === 'boss'
-    ? [{ ...STAGES[stage]!.boss, ability: bossAbilities[stage] ?? undefined }]
+    ? [{ ...STAGES[stage]!.boss, ability: bossAbilities[stage] }]
     : STAGES[stage]!.battle;
 
-/**
- * Gives each boss a different ability, drawn at random from the built abilities. While fewer
- * than three exist, the remaining bosses have none.
- */
-export function drawBossAbilities(rng: Rng, count: number = STAGES.length): (BossAbility | null)[] {
-  const pool = [...BUILT_ABILITIES];
-  const drawn: (BossAbility | null)[] = [];
-  while (drawn.length < count) {
-    drawn.push(pool.length > 0 ? pool.splice(Math.floor(rng() * pool.length), 1)[0]! : null);
-  }
+/** Gives each boss a different ability, drawn at random; one of the four is left out. */
+export function drawBossAbilities(rng: Rng, count: number = STAGES.length): BossAbility[] {
+  const pool = [...BOSS_ABILITIES];
+  const drawn: BossAbility[] = [];
+  while (drawn.length < count) drawn.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]!);
   return drawn;
 }
 

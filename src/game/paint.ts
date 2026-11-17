@@ -1,5 +1,5 @@
 import { removeDeadEnemies, statusFor, type BattleEvent, type BattleState, type TurnResult } from './battle';
-import { applyEffect } from './effects';
+import { applyEffect, breakShield } from './effects';
 import type { Rng } from './rng';
 import {
   BRUSH_RED_BURN_TURNS, BRUSH_YELLOW_EXTRA_DAMAGE, MIX_COLORS, MIX_EFFECTS, MIX_RECIPES, PAINT_EFFECTS, PAINT_MAX,
@@ -36,6 +36,7 @@ export function spend(state: BattleState, color: PaintColor, enemyId: number): T
   }
   const events: BattleEvent[] = [{ type: 'paintSpent', color, amount: SPEND_COST }];
   applyEffect(target, effect, color, events);
+  breakShield(target, events);
   const paint = { ...state.paint, [color]: state.paint[color] - SPEND_COST };
   return finish(state, { enemies, paint }, events);
 }
@@ -73,6 +74,7 @@ export function useMix(
     if (!enemy) return reject(state);
     const events: BattleEvent[] = [{ type: 'mixUsed', mix: held }];
     applyEffect(enemy, MIX_EFFECTS[held], held, events);
+    breakShield(enemy, events);
     return finish(state, { enemies, heldMix: null }, events);
   }
 
@@ -84,6 +86,7 @@ export function useMix(
   for (const enemy of enemies) {
     enemy.hp -= RAINBOW_DAMAGE;
     events.push({ type: 'enemyDamaged', enemyId: enemy.id, amount: RAINBOW_DAMAGE, source: 'rainbow' });
+    breakShield(enemy, events);
   }
   for (const enemy of enemies.filter((e) => e.hp > 0)) {
     const name = MIX_COLORS[Math.floor(rng() * MIX_COLORS.length)]!; // rolled per enemy

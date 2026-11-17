@@ -50,6 +50,7 @@ button { cursor: pointer; font-weight: 700; }
 .enemy .countdown { font-weight: 800; font-size: 1.05rem; }
 .enemy .ability { font-weight: 700; color: var(--accent); }
 .enemy .ability.soon { animation: abilityPulse .8s ease-in-out infinite; }
+.enemy.shielded { box-shadow: 0 0 0 4px #bfdbfe, 0 0 0 6px #3b82f6; }
 .enemy .status { color: var(--muted); min-height: 1.2em; }
 .enemy.attack { animation: shake .4s; background: #fee2e2; }
 .enemy.empty { border-style: dashed; opacity: .55; display: grid; place-items: center; }
@@ -93,6 +94,7 @@ button { cursor: pointer; font-weight: 700; }
 .board.locked { opacity: .55; }
 .cell { aspect-ratio: 1; min-width: 0; display: grid; place-items: center; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .35)); }
 .cell.shake { animation: shake .35s; }
+.cell.blot { animation: blot .8s ease-out; }
 
 /* ---- Bottle shapes: each type has its own shape as well as its color ---- */
 .shape { width: 82%; height: 82%; background: var(--c); }
@@ -147,6 +149,7 @@ button { cursor: pointer; font-weight: 700; }
   100% { transform: translateY(0); }
 }
 @keyframes abilityPulse { 50% { transform: scale(1.12); background: #fde68a; } }
+@keyframes blot { 0% { background: #1e293b; transform: scale(1.25); } 100% { background: transparent; transform: scale(1); } }
 @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 @keyframes fxRise {
   0% { transform: translate(-50%, -30%) scale(.6); opacity: 0; }

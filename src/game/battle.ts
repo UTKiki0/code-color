@@ -1,7 +1,8 @@
-import { createBoard, swap, type Board, type BoardEvent, type Cell } from './board';
+import { blotBoard, createBoard, swap, type Board, type BoardEvent, type Cell } from './board';
+import { isShielded } from './effects';
 import type { Rng } from './rng';
 import {
-  ABILITY_COUNTDOWN, BOSS_HEAL_AMOUNT, ENEMY_ATTACK_DAMAGE, PAINT_THIEF_AMOUNT, PAINT_COLORS, PAINT_MAX, PLAYER_START_HP, STAGES,
+  ABILITY_COUNTDOWN, BOSS_HEAL_AMOUNT, INK_BLOT_COUNT, ENEMY_ATTACK_DAMAGE, PAINT_THIEF_AMOUNT, PAINT_COLORS, PAINT_MAX, PLAYER_START_HP, STAGES,
   whiteMatchDamage, type Bottle, type BossAbility, type EffectName, type EnemyDef, type MixColor, type PaintColor, type Weapon,
 } from './rules';
 
@@ -18,7 +19,9 @@ export interface Enemy {
   countdown: number; // turns until this enemy attacks
   attack: number; // damage dealt to the player when it attacks
   burn: Burn | null;
-  ability: { kind: BossAbility; countdown: number } | null; // bosses only
+  // Bosses only. For every ability but shield, the turns until it acts. For shield, 0 means the
+  // shield is up and above 0 is the turns until it returns after paint broke it.
+  ability: { kind: BossAbility; countdown: number } | null;
 }
 
 export interface BattleState {
@@ -50,6 +53,9 @@ export type BattleEvent =
   | { type: 'enemyDied'; enemyId: number }
   | { type: 'enemyAttacked'; enemyId: number; damage: number }
   | { type: 'paintStolen'; enemyId: number; color: PaintColor; amount: number } // amount actually taken
+  | { type: 'inkBlotted'; enemyId: number; cells: Cell[] } // bottles turned into empties
+  | { type: 'shieldBroken'; enemyId: number }
+  | { type: 'shieldRestored'; enemyId: number }
   | { type: 'bossHealed'; enemyId: number; amount: number } // amount actually healed, after the cap
   | { type: 'won' }
   | { type: 'lost' };
@@ -86,7 +92,8 @@ export function createBattle(rng: Rng, setup: BattleSetup = {}): BattleState {
       countdown: e.countdown,
       attack: e.attack ?? ENEMY_ATTACK_DAMAGE,
       burn: null,
-      ability: e.ability ? { kind: e.ability, countdown: ABILITY_COUNTDOWN } : null,
+      // A shield starts up (countdown 0); every other ability starts its countdown at the full value.
+      ability: e.ability ? { kind: e.ability, countdown: e.ability === 'shield' ? 0 : ABILITY_COUNTDOWN } : null,
     })),
     status: 'playing',
   };
@@ -140,7 +147,14 @@ export function fullestBottle(paint: Record<PaintColor, number>, rng: Rng): Pain
   return tied[Math.floor(rng() * tied.length)]!;
 }
 
-function useAbility(boss: Enemy, paint: Record<PaintColor, number>, rng: Rng, events: BattleEvent[]): void {
+/** What an ability can change besides the boss itself. The board is replaced, never edited. */
+interface AbilityTarget {
+  paint: Record<PaintColor, number>;
+  board: Board;
+}
+
+function useAbility(boss: Enemy, target: AbilityTarget, rng: Rng, events: BattleEvent[]): void {
+  const { paint } = target;
   switch (boss.ability!.kind) {
     case 'heal': {
       const amount = Math.min(BOSS_HEAL_AMOUNT, boss.maxHp - boss.hp);
@@ -155,6 +169,13 @@ function useAbility(boss: Enemy, paint: Record<PaintColor, number>, rng: Rng, ev
       if (amount === 0) break;
       paint[fullest] -= amount;
       events.push({ type: 'paintStolen', enemyId: boss.id, color: fullest, amount });
+      break;
+    }
+    case 'inkBlot': {
+      const blot = blotBoard(target.board, INK_BLOT_COUNT, rng);
+      target.board = blot.board;
+      events.push({ type: 'inkBlotted', enemyId: boss.id, cells: blot.cells });
+      if (blot.shuffled) events.push({ type: 'shuffled' });
       break;
     }
     default:
@@ -197,8 +218,10 @@ export function takeTurn(state: BattleState, a: Cell, b: Cell, rng: Rng): TurnRe
       const targets = living();
       if (targets.length === 0) break;
       const hit = state.weapon === 'roller' ? targets : [targets[Math.floor(rng() * targets.length)]!];
-      const amount = whiteMatchDamage(match.length, state.weapon);
+      const base = whiteMatchDamage(match.length, state.weapon);
       for (const target of hit) {
+        // A shield halves white damage (rounded down, at least 1).
+        const amount = isShielded(target) ? Math.max(1, Math.floor(base / 2)) : base;
         target.hp -= amount;
         events.push({ type: 'enemyDamaged', enemyId: target.id, amount, source: 'white', cells: match });
       }
@@ -230,11 +253,19 @@ export function takeTurn(state: BattleState, a: Cell, b: Cell, rng: Rng): TurnRe
   }
 
   // 5b. Boss abilities count down after the attacks and act at zero.
+  const world: AbilityTarget = { paint, board: moved.board };
   for (const enemy of enemies) {
     if (!enemy.ability) continue;
+    if (enemy.ability.kind === 'shield') {
+      // A broken shield comes back after its turns; a shield that is up has no timer.
+      if (enemy.ability.countdown === 0) continue;
+      enemy.ability = { kind: 'shield', countdown: enemy.ability.countdown - 1 };
+      if (enemy.ability.countdown === 0) events.push({ type: 'shieldRestored', enemyId: enemy.id });
+      continue;
+    }
     enemy.ability = { ...enemy.ability, countdown: enemy.ability.countdown - 1 };
     if (enemy.ability.countdown > 0) continue;
-    useAbility(enemy, paint, rng, events);
+    useAbility(enemy, world, rng, events);
     enemy.ability.countdown = ABILITY_COUNTDOWN;
   }
 
@@ -244,7 +275,7 @@ export function takeTurn(state: BattleState, a: Cell, b: Cell, rng: Rng): TurnRe
 
   return {
     ok: true,
-    state: { ...state, board: moved.board, paint, enemies, playerHp, status },
+    state: { ...state, board: world.board, paint, enemies, playerHp, status },
     events,
   };
 }

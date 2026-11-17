@@ -122,6 +122,32 @@ export function shuffleBoard(board: Board, rng: Rng): Board {
   return createBoard(rng);
 }
 
+/**
+ * Turns `count` random non-empty bottles into empties (a boss's ink blot). The pick is retried
+ * so the board is left with no match and a valid move; if no pick works the board is shuffled.
+ */
+export function blotBoard(board: Board, count: number, rng: Rng): { board: Board; cells: Cell[]; shuffled: boolean } {
+  const filled: Cell[] = [];
+  board.forEach((bottles, row) => bottles.forEach((bottle, col) => { if (bottle !== 'empty') filled.push({ row, col }); }));
+  const n = Math.min(count, filled.length);
+
+  let next = board;
+  let picked: Cell[] = [];
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    // Partial Fisher-Yates: the first n of a shuffled copy are n distinct cells.
+    const pool = [...filled];
+    for (let i = 0; i < n; i++) {
+      const j = i + Math.floor(rng() * (pool.length - i));
+      [pool[i], pool[j]] = [pool[j]!, pool[i]!];
+    }
+    picked = pool.slice(0, n);
+    next = copyBoard(board);
+    for (const c of picked) next[c.row]![c.col] = 'empty';
+    if (findMatches(next).length === 0 && hasValidMove(next)) return { board: next, cells: picked, shuffled: false };
+  }
+  return { board: shuffleBoard(next, rng), cells: picked, shuffled: true };
+}
+
 /** Removes cleared cells, drops bottles down each column, and fills the top with new ones. */
 function clearAndRefill(board: Board, cleared: Cell[], rng: Rng): Board {
   const next = copyBoard(board);
