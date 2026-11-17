@@ -24,6 +24,8 @@ export interface ViewOptions {
   testControls?: boolean; // show the weapon dropdown (a test setting)
   restartLabel?: string;
   menuButton?: boolean; // show a Menu button (back to the character select screen) in the top bar
+  // A popup for a newly unlocked character, shown over everything else. The picture is a placeholder.
+  popup?: { name: string; note?: string };
   // A screen over the game: between battles, run won or lost, or battle won or lost.
   overlay?: {
     title: string;
@@ -163,6 +165,17 @@ export function titleHeading(): HTMLElement {
   return title;
 }
 
+/** "Character unlocked!" with the character's name and, until real art exists, a placeholder picture. */
+export function unlockPopup(popup: NonNullable<ViewOptions['popup']>): HTMLElement {
+  const box = el('div', 'popup', { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Character unlocked' });
+  box.append(el('h2', '', {}, 'Character unlocked!'), el('h3', 'popup-name', {}, popup.name));
+  // Placeholder: a dashed square with the character's initial, to be replaced by the real sprite.
+  box.append(el('div', 'sprite placeholder', { role: 'img', 'aria-label': `Placeholder picture of ${popup.name}` }, popup.name[0]));
+  if (popup.note) box.append(el('p', '', {}, popup.note));
+  box.append(el('button', '', { 'data-popup-continue': '' }, 'Continue'));
+  return box;
+}
+
 /** Draws the whole battle into `root`, replacing what was there. */
 export function renderBattle(root: HTMLElement, state: BattleState, view: ViewOptions): void {
   const game = el('main', 'game');
@@ -222,5 +235,6 @@ export function renderBattle(root: HTMLElement, state: BattleState, view: ViewOp
     if (actions.childElementCount > 0) overlay.append(actions);
     game.append(overlay);
   }
+  if (view.popup) game.append(unlockPopup(view.popup));
   root.replaceChildren(game);
 }

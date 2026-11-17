@@ -1,11 +1,13 @@
 import { CHARACTERS, type CharacterId } from '../game/characters';
-import { el, titleHeading } from './view';
+import { el, titleHeading, unlockPopup } from './view';
 import { WEAPON_INFO } from './weapons';
 
 // The character select screen, shown before a run. Drawing only: unlocking and saving are decided
 // in game/ and save/. A locked character shows how to unlock it and cannot be chosen.
 
-export function renderSelect(root: HTMLElement, view: { unlocked: CharacterId[]; canSave: boolean }): void {
+export function renderSelect(
+  root: HTMLElement, view: { unlocked: CharacterId[]; canSave: boolean; popup?: { name: string; note?: string } },
+): void {
   const screen = el('main', 'game select');
   const top = el('header', 'topbar');
   top.append(titleHeading());
@@ -30,5 +32,6 @@ export function renderSelect(root: HTMLElement, view: { unlocked: CharacterId[];
   if (!view.canSave) {
     screen.append(el('p', 'select-note', { role: 'status' }, 'Progress cannot be saved in this browser, so unlocked characters will not be kept.'));
   }
+  if (view.popup) screen.append(unlockPopup(view.popup)); // an unlock waiting from an earlier visit
   root.replaceChildren(screen);
 }

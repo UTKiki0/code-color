@@ -213,3 +213,16 @@ button { cursor: pointer; font-weight: 700; }
 .character .unlock-hint { font-weight: 700; color: var(--ink); } /* the accent color is too faint on the locked card (3.95:1) */
 .select-note { margin: 0; padding: 8px 10px; border: 2px solid var(--ink); border-radius: 10px; background: #fff7ed; font-size: .9rem; }
 .overlay-buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+/* ---- Unlock popup (a placeholder picture until the Developer's sprites arrive) ---- */
+.popup {
+  position: absolute; inset: 0; z-index: 8; display: grid; place-content: center; justify-items: center; gap: 10px; text-align: center;
+  background: var(--bg); border-radius: var(--radius); /* opaque, so the screen behind never shows through */
+}
+.popup h2 { margin: 0; font-size: 1.7rem; color: var(--accent); }
+.popup-name { margin: 0; font-size: 1.5rem; }
+.popup p { margin: 0; max-width: 28ch; }
+.sprite.placeholder {
+  width: 140px; height: 140px; display: grid; place-items: center; border: 3px dashed var(--ink); border-radius: 24px;
+  background: #fff; font-size: 4.5rem; font-weight: 900; color: var(--ink);
+}

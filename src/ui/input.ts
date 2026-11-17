@@ -18,6 +18,7 @@ export interface Commands {
   restart(): void; // a new run (or test battle) with the same character
   menu(): void; // back to the character select screen
   chooseCharacter(id: CharacterId): void;
+  dismissPopup(): void; // continue past an unlock popup
 }
 
 type Gesture =
@@ -126,7 +127,8 @@ export function attachInput(root: HTMLElement, commands: Commands): void {
   root.addEventListener('click', (e) => {
     const target = e.target as HTMLElement;
     const character = target.closest<HTMLElement>('[data-character]');
-    if (character) {
+    if (target.closest('[data-popup-continue]')) commands.dismissPopup();
+    else if (character) {
       if (character.getAttribute('aria-disabled') !== 'true') commands.chooseCharacter(character.dataset.character as CharacterId);
     } else if (target.closest('[data-restart]')) commands.restart();
     else if (target.closest('[data-menu]')) commands.menu();

@@ -6,14 +6,14 @@ import { createRng, type Rng } from '../game/rng';
 import { chooseWeapon, continueRun, createRun, drawBossAbilities, nextEncounter, updateBattle, type RunState } from '../game/run';
 import { PAINT_MAX, PLAYER_START_HP, POST_BOSS_HEAL, SPEND_COST, STAGES, type BossAbility, type PaintColor } from '../game/rules';
 import { goalsReached, unlock } from '../game/unlocks';
-import { browserStorage, loadUnlocked, saveUnlocked, type KeyValueStorage } from '../save/save';
+import { browserStorage, loadProgress, saveProgress, type KeyValueStorage } from '../save/save';
 import { floatOverEnemy, floatOverPlayer } from './fx';
 import { attachInput } from './input';
 import { ITEM_INFO } from './items';
 import { playItem, playMove } from './replay';
 import { WEAPON_INFO } from './weapons';
 import { renderSelect } from './select';
-import { unlockMessage } from './unlocktext';
+import { UnlockAnnouncer } from './announcer';
 import { renderBattle, type ViewOptions } from './view';
 
 // Holds the current run (or a single test battle), sends commands to game/, and plays the
@@ -115,21 +115,25 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
   // select screen only exists for a run; the single-battle test modes start straight in.
   const storage = options.storage === undefined ? browserStorage() : options.storage;
   const loaded = options.unlockAll
-    ? { unlocked: CHARACTERS.map((c) => c.id), canSave: true }
-    : loadUnlocked(storage);
+    ? { unlocked: CHARACTERS.map((c) => c.id), pending: [], canSave: true }
+    : loadProgress(storage);
   let unlocked: CharacterId[] = loaded.unlocked;
+  // Unlocked but not yet announced with a popup. It is saved, so a player who closed the page
+  // mid-run gets the popups the next time they open the game.
+  let pending: CharacterId[] = loaded.pending;
+  const savePending = () => { if (!options.unlockAll) canSave = saveProgress(storage, { unlocked, pending }); };
   let canSave = loaded.canSave;
   let characterId: CharacterId = options.character ?? DEFAULT_CHARACTER;
   let onSelectScreen = mode.kind === 'run' && options.character === undefined;
-  // Everything unlocked so far in this run. It is saved at once (so closing the page keeps it) but
-  // only announced on the end screen.
-  let unlockedThisRun: CharacterId[] = [];
+  // Characters unlocked during a run are saved at once (so closing the page keeps them) but only
+  // announced, one popup each, when the run ends or the player leaves it with Rerun or Menu.
+  const announcer = new UnlockAnnouncer();
 
   /** Starts a new run, or a new single battle in a test mode. */
   const begin = () => {
     if (mode.kind === 'run') {
       run = createRun(rng, characterId);
-      unlockedThisRun = [];
+      announcer.reset();
       if (options.fullPaint) run = { ...run, battle: { ...run.battle, paint: { ...FULL_PAINT } } };
       state = run.battle;
       message = `${characterById(characterId).name}: stage 1, battle 1. Swipe a bottle to match three. White bottles hurt enemies; paint can be spent or mixed.`;
@@ -147,12 +151,16 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
     state = next;
     if (!run) return;
     run = updateBattle(run, next, rng);
-    // A boss defeated or a run won may unlock characters; each is announced once and saved.
+    // A boss defeated or a run won may unlock characters: save them now, announce them later.
     const result = unlock(unlocked, goalsReached(run));
-    if (result.newly.length === 0) return;
-    unlocked = result.unlocked;
-    unlockedThisRun = [...unlockedThisRun, ...result.newly];
-    if (!options.unlockAll) canSave = saveUnlocked(storage, unlocked);
+    if (result.newly.length > 0) {
+      unlocked = result.unlocked;
+      pending = [...pending, ...result.newly];
+      announcer.earn(result.newly);
+      savePending();
+    }
+    // When the run is over, everything it unlocked is announced, one popup each, over the end screen.
+    if (run.phase === 'won' || run.phase === 'lost') announcer.flush(() => undefined);
   };
 
   // Options that stay the same for every frame of a battle, including the replay frames.
@@ -163,8 +171,6 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
     restartLabel: run ? 'Rerun' : 'Restart',
     menuButton: run !== null,
   });
-
-  const unlockLines = (): string[] => unlockMessage(unlockedThisRun, canSave);
 
   // The end-of-run buttons: Rerun starts again with the same character, Menu goes back to select.
   const endButtons: NonNullable<NonNullable<ViewOptions['overlay']>['buttons']> = [
@@ -178,10 +184,10 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
       return { title: state.status === 'won' ? 'You won!' : 'You lost', lines: [], buttons: [{ label: 'Play again', action: 'restart' }] };
     }
     if (run.phase === 'won') {
-      return { title: 'Run won!', lines: ['You beat all three bosses.', ...unlockLines()], buttons: endButtons };
+      return { title: 'Run won!', lines: ['You beat all three bosses.'], buttons: endButtons };
     }
     if (run.phase === 'lost') {
-      return { title: 'Run lost', lines: [`You fell in ${encounterName(run)}.`, ...unlockLines()], buttons: endButtons };
+      return { title: 'Run lost', lines: [`You fell in ${encounterName(run)}.`], buttons: endButtons };
     }
     if (run.phase === 'cleared' || run.phase === 'choosingWeapon') {
       const afterBoss = run.encounter === 'boss';
@@ -209,13 +215,20 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
     return undefined;
   };
 
+  /** What the unlock popup shows for a character, or nothing when no popup is due. */
+  const popupFor = (id: CharacterId | null) => id === null ? undefined : {
+    name: characterById(id).name,
+    note: canSave ? undefined : 'Progress cannot be saved in this browser, so this will not be kept.',
+  };
+
   const draw = (extra: Partial<ViewOptions> = {}) => {
     if (onSelectScreen) {
-      renderSelect(root, { unlocked, canSave });
+      renderSelect(root, { unlocked, canSave, popup: popupFor(announcer.current()) });
       return;
     }
     renderBattle(root, state, {
       message, messageIsLock: state.heldMix !== null, ...baseView(), overlay: overlay(), ...extra,
+      popup: popupFor(announcer.current()),
     });
   };
 
@@ -327,18 +340,28 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
 
     // These three ignore clicks while a move is still being replayed, so the replay cannot draw
     // the old battle over the new screen.
+    // If the run unlocked characters, their popups come first and the action waits for them.
     restart() {
-      if (busy) return;
-      begin();
-      draw();
+      if (busy || announcer.showing) return;
+      const go = () => { begin(); draw(); };
+      if (announcer.flush(go)) draw(); else go();
     },
 
     menu() {
-      if (busy) return;
-      run = null;
-      unlockedThisRun = [];
-      onSelectScreen = true;
-      draw();
+      if (busy || announcer.showing) return;
+      const go = () => { run = null; announcer.reset(); onSelectScreen = true; draw(); };
+      if (announcer.flush(go)) draw(); else go();
+    },
+
+    dismissPopup() {
+      // A character is announced once it has been seen, so it stops being pending (and is saved).
+      const seen = announcer.current();
+      if (seen !== null) {
+        pending = pending.filter((id) => id !== seen);
+        savePending();
+      }
+      announcer.dismiss()?.(); // after the last popup, carry on with what the player was doing
+      draw(); // then redraw: the next popup, or the screen without one
     },
 
     chooseCharacter(id: CharacterId) {
@@ -351,5 +374,11 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
   });
 
   if (!onSelectScreen) begin();
+  // Characters unlocked in an earlier visit that were never announced (the page was closed mid-run)
+  // get their popups now, before anything else, in a run (the test modes stay clean).
+  if (mode.kind === 'run' && pending.length > 0) {
+    announcer.earn(pending);
+    announcer.flush(() => undefined);
+  }
   draw();
 }
