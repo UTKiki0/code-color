@@ -150,17 +150,18 @@ describe('what carries over', () => {
     expect(next.battle.playerHp).toBe(7);
   });
 
-  it('heals 10 after a boss', () => {
+  it('heals 15 after a boss', () => {
     const atBoss = advance(createRun(rng), FIRST_BOSS);
-    const next = moveOn(winBattle(atBoss, { playerHp: 5 }));
+    const next = moveOn(winBattle(atBoss, { playerHp: 2 }));
     expect(next).toMatchObject({ stage: 1, encounter: 'battle' });
-    expect(next.battle.playerHp).toBe(5 + POST_BOSS_HEAL);
+    expect(next.battle.playerHp).toBe(2 + 15);
+    expect(POST_BOSS_HEAL).toBe(15); // the Developer's number, so changing it is a deliberate edit
   });
 
   it('never heals above the maximum', () => {
     const atBoss = advance(createRun(rng), FIRST_BOSS);
-    const next = moveOn(winBattle(atBoss, { playerHp: 15 }));
-    expect(next.battle.playerHp).toBe(PLAYER_START_HP);
+    const next = moveOn(winBattle(atBoss, { playerHp: 12 }));
+    expect(next.battle.playerHp).toBe(PLAYER_START_HP); // 12 + 15 is capped at the maximum
   });
 
   it('does not change the cleared battle\'s state', () => {

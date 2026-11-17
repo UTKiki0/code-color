@@ -81,30 +81,14 @@ function floatCommandDamage(events: BattleEvent[]): void {
   for (const [enemyId, amount] of totals) floatOverEnemy(enemyId, `-${amount}`, 'damage');
 }
 
-/** A red number over the player panel for stolen paint, shown with the final state of a move. */
-function floatThefts(events: BattleEvent[]): void {
-  for (const e of events) {
-    if (e.type === 'paintStolen') floatOverPlayer(`-${e.amount} ${e.color}`, 'damage');
-  }
-}
-
-/** A green number over the player panel when a mix heals. */
-function floatPlayerHeals(events: BattleEvent[]): void {
-  for (const e of events) if (e.type === 'playerHealed' && e.amount > 0) floatOverPlayer(`+${e.amount}`, 'heal');
-}
-
-/** Short notes over the boss when its shield breaks or returns. */
-function floatShield(events: BattleEvent[]): void {
-  for (const e of events) {
-    if (e.type === 'shieldBroken') floatOverEnemy(e.enemyId, 'Shield broken!', 'info');
-    else if (e.type === 'shieldRestored') floatOverEnemy(e.enemyId, 'Shield back', 'info');
-  }
-}
-
-/** Green numbers for boss healing, shown with the final state of a move. */
-function floatHeals(events: BattleEvent[]): void {
+/** Floating notes for what a boss or a mix did, shown with the final state: heals, stolen paint, shield changes. */
+function floatEffects(events: BattleEvent[]): void {
   for (const e of events) {
     if (e.type === 'bossHealed' && e.amount > 0) floatOverEnemy(e.enemyId, `+${e.amount}`, 'heal');
+    else if (e.type === 'playerHealed' && e.amount > 0) floatOverPlayer(`+${e.amount}`, 'heal');
+    else if (e.type === 'paintStolen') floatOverPlayer(`-${e.amount} ${e.color}`, 'damage');
+    else if (e.type === 'shieldBroken') floatOverEnemy(e.enemyId, 'Shield broken!', 'info');
+    else if (e.type === 'shieldRestored') floatOverEnemy(e.enemyId, 'Shield back', 'info');
   }
 }
 
@@ -207,8 +191,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
     message = describe(result.events, baseView().bossFight === true);
     draw();
     floatCommandDamage(result.events);
-    floatShield(result.events);
-    floatPlayerHeals(result.events);
+    floatEffects(result.events);
   };
 
   /** Plays a turn that changed the board (a swipe or a tapped item), then shows its final state. */
@@ -218,9 +201,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
     setBattle(result.state);
     message = describe(result.events, baseView().bossFight === true);
     draw(attackEffects(result.events));
-    floatHeals(result.events);
-    floatShield(result.events);
-    floatThefts(result.events);
+    floatEffects(result.events);
     if (!reducedMotion()) {
       const hits = result.events.filter((e) => e.type === 'enemyAttacked');
       const total = hits.reduce((sum, e) => sum + (e.type === 'enemyAttacked' ? e.damage : 0), 0);

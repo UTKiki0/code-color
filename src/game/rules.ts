@@ -37,7 +37,7 @@ export const SPAWN_WEIGHTS: Record<BaseBottle, number> = {
   empty: 0.18,
 };
 
-// --- Battle rules (checkpoint 3) ---
+// --- Battle rules ---
 
 export type PaintColor = 'red' | 'yellow' | 'blue';
 export const PAINT_COLORS: PaintColor[] = ['red', 'yellow', 'blue'];
@@ -64,7 +64,7 @@ export const WEAPON_OFFER_SIZE = 2;
 export const PLAYER_START_HP = 20; // also the most HP the player can have
 export const ENEMY_ATTACK_DAMAGE = 3; // a regular enemy's hit; bosses set their own
 
-// --- Runs (checkpoint 6) ---
+// --- Runs ---
 
 // An enemy as described in a stage. The countdown is in player turns (successful moves).
 export interface EnemyDef {
@@ -75,7 +75,7 @@ export interface EnemyDef {
   ability?: BossAbility; // bosses only; chosen per run, not listed in STAGES
 }
 
-// --- Boss abilities (checkpoint 9) ---
+// --- Boss abilities ---
 
 export type BossAbility = 'paintThief' | 'inkBlot' | 'shield' | 'heal';
 export const BOSS_ABILITIES: BossAbility[] = ['paintThief', 'inkBlot', 'shield', 'heal'];
@@ -117,9 +117,10 @@ export const STAGES: Stage[] = [
 ];
 
 // The player heals this much after each boss (up to PLAYER_START_HP), and not after regular battles.
-export const POST_BOSS_HEAL = 10;
+// 15 by the Developer's choice, 2026-11-17 (it was 10), because two regular battles per stage wore HP down.
+export const POST_BOSS_HEAL = 15;
 
-// --- Paint use (checkpoint 4) ---
+// --- Paint use ---
 
 export const SPEND_COST = 3; // paint used by one direct spend on an enemy
 
@@ -139,8 +140,8 @@ export const PAINT_EFFECTS: Record<PaintColor, Effect> = {
   yellow: { damage: 3 },
   blue: { slow: 1 },
 };
-// The brush strengthens direct spends: red burns longer and yellow hits harder.
-// Mixes are unaffected for now.
+// The brush strengthens direct red and yellow spends: red burns longer and yellow hits harder.
+// It does not change mixes.
 export const BRUSH_RED_BURN_TURNS = 5;
 export const BRUSH_YELLOW_EXTRA_DAMAGE = 1;
 

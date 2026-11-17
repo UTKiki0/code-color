@@ -104,10 +104,10 @@ The first playable milestone remains one battle demonstrating bottle matching, c
 - With the browser's reduced-motion setting on, animations are shortened or removed, and nothing flashes.
 - Deferred to Phase 5: keyboard operation (arrow-key selection, Enter to swap, spend, and mix). Input handling stays separate from game logic so this can be added later.
 
-**Runs and bosses** (Phase 3; decisions are the Developer's from 2026-11-16 unless marked as proposed; nothing is implemented yet)
+**Runs and bosses** (Phase 3; decisions are the Developer's from 2026-11-16 unless marked as proposed or dated otherwise; implemented in checkpoints 6 to 10)
 - A run has three stages. Each stage is two regular battles followed by a boss, nine encounters in all (Developer decision, 2026-11-17, to see whether the longer stretch between bosses improves the difficulty; a stage used to be one battle and a boss). There is no healing between the two battles; the +10 heal comes only after a boss. Beating the final boss wins the run. Player HP reaching 0 loses it, and the player can start a new run.
-- HP and stored paint carry over between battles within a run (Developer decision, 2026-11-16; stored paint carrying over may change after balancing). A mix still held when a battle ends does not carry over; it is discarded (Developer decision, 2026-11-16). The player heals +10 HP after each boss, capped at max HP (20), and does not heal after regular battles.
-- After beating a boss (the first two; the third ends the run), the player chooses between two random weapons, drawn from all weapons, so one may be the weapon already held. The offer that matches the held weapon is labeled "Keep" (for example "Keep: Brush"). Choosing a different weapon replaces the current one. The choice cannot be skipped, and it appears on the "Boss defeated!" screen with each weapon's one-line effect; choosing moves straight on to the next battle (with the +10 heal). The player panel shows the equipped weapon. Developer decision, 2026-11-16.
+- HP and stored paint carry over between battles within a run (Developer decision, 2026-11-16; stored paint carrying over may change after balancing). A mix still held when a battle ends does not carry over; it is discarded (Developer decision, 2026-11-16). The player heals +15 HP after each boss (it was 10 until the Developer raised it on 2026-11-17 because two battles per stage wore HP down), capped at max HP (20), and does not heal after regular battles.
+- After beating a boss (the first two; the third ends the run), the player chooses between two random weapons, drawn from all weapons, so one may be the weapon already held. The offer that matches the held weapon is labeled "Keep" (for example "Keep: Brush"). Choosing a different weapon replaces the current one. The choice cannot be skipped, and it appears on the "Boss defeated!" screen with each weapon's one-line effect; choosing moves straight on to the next battle (with the +15 heal). The player panel shows the equipped weapon. Developer decision, 2026-11-16.
 - Each boss is one enemy with a special ability. The four abilities are paint thief, ink blot, shield, and heal. Each run gives the three bosses three different abilities, chosen at random (one of the four is left out). Each boss has its own art, tied to its ability. The ability and its countdown are shown on the boss card from the start of the fight, and the card pulses when the ability is one turn away (Developer decision, 2026-11-16).
 - Ability details (proposed starting values, to tune by playtesting; each runs on its own countdown, which starts at its full value when the boss fight starts (Developer decision), and acts after enemy attacks in the turn order):
   - Paint thief: every 3 turns, removes 3 paint from the player's fullest bottle (or whatever is left if it holds less). A tie for fullest is broken at random (Developer decision, 2026-11-16). With no paint stored, nothing happens. The theft shows as a red number over the player panel. Built in checkpoint 9.
@@ -126,7 +126,7 @@ The first playable milestone remains one battle demonstrating bottle matching, c
 
 **Test settings** (for the Developer's testing, not player features), added to the address: `?seed=N` for a repeatable game; `?fullPaint` to start with full paint bottles so mixing and rainbow can be tried quickly; `?battle` for a single regular battle instead of a run (`?battle=2` for stage 2's first battle, and `?battle=2&round=2` for its second); `?boss` for a single boss battle (`?boss=3` for stage 3's boss); `?ability=heal` (with `?boss`) to give the test boss a chosen ability (`paintThief`, `inkBlot`, `shield`, `heal`; without it one is drawn); `?testing` to show the weapon dropdown during a run. The single-battle and single-boss modes show the weapon dropdown and a Restart button; the run shows a New run button and no dropdown.
 
-**Acceptance checks (all pending implementation and verification)**
+**Acceptance checks** (built and tested in checkpoints 3 to 5; each is covered by Vitest tests, and `plan.md` records the mapping at the end of Phase 3)
 - A swap that creates no match reverts and changes no countdown, burn, or paint.
 - A move with a cascade collects the correct paint and white damage, and advances countdowns and burn exactly once.
 - Paint never exceeds 9. Spending requires 3 paint; mixing requires every ingredient bottle full.
@@ -139,8 +139,10 @@ The first playable milestone remains one battle demonstrating bottle matching, c
 - An enemy attacks at countdown 0, and the player can win, lose, and restart.
 
 **Still open**
-- Balance: white is now weak (a 3-match deals 2 with the gun and 1 with the others, against 10-HP enemies), so yellow spends (3 damage for 3 paint, 4 with the brush), burns, and rainbow carry most damage. Enemy HP and other numbers may need retuning after playtesting.
-- How the three boss fights fit between ordinary battles in a run (run structure is outside the single-battle milestone).
+- Balance, the main open item. The simulator (see `plan.md`) says the extra regular battle per stage makes runs much harder because HP only recovers after a boss; the Developer raised the boss heal to 15 and is playtesting. Enemy HP, countdowns, the gun's +1 white bonus, and the new mix and item numbers are all starting values.
+- Whether cascade steps should make items (they do now, so one rule covers every step) and how often items appear.
+- Boss and item art: placeholder shapes for now; the `art/` folder is ready for the Developer's assets.
+- Phase 4 (characters, unlocks, saving) and Phase 5 (keyboard operation) are not started. Studio director approval of the pitch is unconfirmed (`research.md`).
 
 ## Architecture
 

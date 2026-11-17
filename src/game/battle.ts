@@ -1,4 +1,4 @@
-import { blotBoard, connectedGroups, createBoard, swap, useItem as useBoardItem, type Board, type BoardEvent, type Cell } from './board';
+import { blotBoard, connectedGroups, createBoard, swap, useItem as useBoardItem, type Board, type BoardEvent, type Cell, type SwapResult } from './board';
 import { isShielded } from './effects';
 import type { Rng } from './rng';
 import {
@@ -159,8 +159,6 @@ function useAbility(boss: Enemy, target: AbilityTarget, rng: Rng, events: Battle
       if (blot.shuffled) events.push({ type: 'shuffled' });
       break;
     }
-    default:
-      break; // the other abilities are built in later steps
   }
 }
 
@@ -180,7 +178,7 @@ export function useItem(state: BattleState, at: Cell, rng: Rng): TurnResult {
 }
 
 /** The shared turn rules (see spec.md) once the board has changed. A rejected board change is a rejected move. */
-function resolveMove(state: BattleState, moved: ReturnType<typeof swap>, rng: Rng): TurnResult {
+function resolveMove(state: BattleState, moved: SwapResult, rng: Rng): TurnResult {
   if (!moved.ok) return { ok: false, state, events: [] };
 
   const paint = { ...state.paint };
