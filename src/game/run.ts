@@ -1,6 +1,6 @@
 import { createBattle, type BattleState } from './battle';
 import type { Rng } from './rng';
-import { POST_BOSS_HEAL, PLAYER_START_HP, STAGES, WEAPONS, WEAPON_OFFER_SIZE, type Weapon } from './rules';
+import { BUILT_ABILITIES, POST_BOSS_HEAL, PLAYER_START_HP, STAGES, WEAPONS, WEAPON_OFFER_SIZE, type BossAbility, type Weapon } from './rules';
 
 // A run: three stages, each a regular battle then a boss. This file decides which
 // battle comes next and what carries over. The battle itself is played in battle.ts.
@@ -20,20 +20,32 @@ export interface RunState {
   battle: BattleState;
   phase: RunPhase;
   weaponOffer: Weapon[] | null; // the weapons to choose from, only while choosingWeapon
+  bossAbilities: (BossAbility | null)[]; // each stage's boss ability, fixed for the run
 }
 
-const enemiesFor = (stage: number, encounter: Encounter) =>
-  encounter === 'boss' ? [STAGES[stage]!.boss] : STAGES[stage]!.battle;
+const enemiesFor = (stage: number, encounter: Encounter, bossAbilities: (BossAbility | null)[]) =>
+  encounter === 'boss'
+    ? [{ ...STAGES[stage]!.boss, ability: bossAbilities[stage] ?? undefined }]
+    : STAGES[stage]!.battle;
+
+/**
+ * Gives each boss a different ability, drawn at random from the built abilities. While fewer
+ * than three exist, the remaining bosses have none.
+ */
+export function drawBossAbilities(rng: Rng, count: number = STAGES.length): (BossAbility | null)[] {
+  const pool = [...BUILT_ABILITIES];
+  const drawn: (BossAbility | null)[] = [];
+  while (drawn.length < count) {
+    drawn.push(pool.length > 0 ? pool.splice(Math.floor(rng() * pool.length), 1)[0]! : null);
+  }
+  return drawn;
+}
 
 /** A new run, at the first battle of the first stage. */
 export function createRun(rng: Rng): RunState {
-  return {
-    stage: 0,
-    encounter: 'battle',
-    battle: createBattle(rng, { enemies: enemiesFor(0, 'battle') }),
-    phase: 'fighting',
-    weaponOffer: null,
-  };
+  const battle = createBattle(rng, { enemies: enemiesFor(0, 'battle', []) });
+  // Drawn after the first board so the abilities do not change which board a seed gives.
+  return { stage: 0, encounter: 'battle', battle, phase: 'fighting', weaponOffer: null, bossAbilities: drawBossAbilities(rng) };
 }
 
 /** Draws distinct weapons at random from all weapons for the player to choose between. */
@@ -73,12 +85,12 @@ export function continueRun(run: RunState, rng: Rng): RunState {
   const encounter: Encounter = afterBoss ? 'battle' : 'boss';
   const heal = afterBoss ? POST_BOSS_HEAL : 0;
   const battle = createBattle(rng, {
-    enemies: enemiesFor(stage, encounter),
+    enemies: enemiesFor(stage, encounter, run.bossAbilities),
     playerHp: Math.min(PLAYER_START_HP, run.battle.playerHp + heal),
     paint: run.battle.paint,
     weapon: run.battle.weapon,
   });
-  return { stage, encounter, battle, phase: 'fighting', weaponOffer: null };
+  return { stage, encounter, battle, phase: 'fighting', weaponOffer: null, bossAbilities: run.bossAbilities };
 }
 
 /**

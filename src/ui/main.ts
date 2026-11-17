@@ -1,4 +1,5 @@
 import './styles.css';
+import { BOSS_ABILITIES, type BossAbility } from '../game/rules';
 import { startSession, type SessionMode } from './session';
 
 // Options in the address (all are for testing and are not shown to players):
@@ -6,6 +7,7 @@ import { startSession, type SessionMode } from './session';
 //   ?fullPaint  start with full paint bottles, so mixing and rainbow can be tried quickly
 //   ?battle     a single regular battle instead of a run (?battle=2 for stage 2's battle)
 //   ?boss       a single boss battle instead of a run (?boss=3 for stage 3's boss)
+//   ?ability=heal  with ?boss, give that boss this ability (paintThief, inkBlot, shield, heal)
 //   ?testing    show the weapon dropdown during a run
 const params = new URLSearchParams(window.location.search);
 
@@ -20,5 +22,8 @@ const mode: SessionMode = params.has('boss')
     ? { kind: 'battle', stage: stageParam('battle') }
     : { kind: 'run' };
 
+const abilityParam = params.get('ability') as BossAbility | null;
+const ability = abilityParam && BOSS_ABILITIES.includes(abilityParam) ? abilityParam : undefined;
+
 const app = document.getElementById('app');
-if (app) startSession(app, seed, { fullPaint: params.has('fullPaint'), mode, testing: params.has('testing') });
+if (app) startSession(app, seed, { ability, fullPaint: params.has('fullPaint'), mode, testing: params.has('testing') });

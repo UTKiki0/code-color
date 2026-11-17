@@ -49,7 +49,18 @@ export interface EnemyDef {
   hp: number;
   countdown: number;
   attack?: number; // damage to the player; defaults to ENEMY_ATTACK_DAMAGE
+  ability?: BossAbility; // bosses only; chosen per run, not listed in STAGES
 }
+
+// --- Boss abilities (checkpoint 9) ---
+
+export type BossAbility = 'paintThief' | 'inkBlot' | 'shield' | 'heal';
+export const BOSS_ABILITIES: BossAbility[] = ['paintThief', 'inkBlot', 'shield', 'heal'];
+// Abilities built so far. A run draws from these; this becomes BOSS_ABILITIES when all four exist.
+export const BUILT_ABILITIES: BossAbility[] = ['heal', 'paintThief'];
+export const ABILITY_COUNTDOWN = 3; // turns between uses, counted from the start of the fight
+export const BOSS_HEAL_AMOUNT = 4;
+export const PAINT_THIEF_AMOUNT = 3; // paint taken from the player's fullest bottle
 
 // A run has three stages. Each is a regular battle followed by a boss.
 // Starting values, to tune by playtesting (see spec.md).

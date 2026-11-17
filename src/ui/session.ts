@@ -2,8 +2,8 @@ import { createBattle, takeTurn, type BattleEvent, type BattleState, type TurnRe
 import type { Cell } from '../game/board';
 import { mix, spend, useMix } from '../game/paint';
 import { createRng, type Rng } from '../game/rng';
-import { chooseWeapon, continueRun, createRun, updateBattle, type RunState } from '../game/run';
-import { PAINT_MAX, PLAYER_START_HP, POST_BOSS_HEAL, SPEND_COST, STAGES, type PaintColor } from '../game/rules';
+import { chooseWeapon, continueRun, createRun, drawBossAbilities, updateBattle, type RunState } from '../game/run';
+import { PAINT_MAX, PLAYER_START_HP, POST_BOSS_HEAL, SPEND_COST, STAGES, type BossAbility, type PaintColor } from '../game/rules';
 import { floatOverEnemy, floatOverPlayer } from './fx';
 import { attachInput } from './input';
 import { playMove } from './replay';
@@ -19,14 +19,17 @@ export interface SessionOptions {
   fullPaint: boolean; // test setting: start with full paint bottles
   mode: SessionMode;
   testing: boolean; // test setting: show the weapon dropdown during a run
+  ability?: BossAbility; // test setting: the ability of a single test boss (default: drawn)
 }
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const enemyName = (id: number) => `Canvas ${id + 1}`;
+// A boss fight has one enemy, called Boss on its card; otherwise enemies are Canvas 1 to 3.
+const enemyNameFor = (bossFight: boolean) => (id: number) => (bossFight ? 'Boss' : `Canvas ${id + 1}`);
 
 /** Plain-language summary of what happened, shown in the message line. */
-function describe(events: BattleEvent[]): string {
+function describe(events: BattleEvent[], bossFight: boolean): string {
+  const enemyName = enemyNameFor(bossFight);
   const parts: string[] = [];
   const steps = events.filter((e) => e.type === 'bottlesCleared').length;
   if (steps > 1) parts.push(`Combo x${steps}!`);
@@ -38,6 +41,8 @@ function describe(events: BattleEvent[]): string {
     else if (e.type === 'effectApplied') parts.push(`${enemyName(e.enemyId)}: ${e.effect} effect`);
     else if (e.type === 'enemyDied') parts.push(`${enemyName(e.enemyId)} finished!`);
     else if (e.type === 'enemyAttacked') parts.push(`${enemyName(e.enemyId)} hit you for ${e.damage}`);
+    else if (e.type === 'paintStolen') parts.push(`${enemyName(e.enemyId)} stole ${e.amount} ${e.color}`)
+    else if (e.type === 'bossHealed') parts.push(`Boss healed ${e.amount} HP`);
     else if (e.type === 'shuffled') parts.push('Board shuffled');
   }
   return parts.join('. ') || 'Done.';
@@ -61,6 +66,20 @@ function floatCommandDamage(events: BattleEvent[]): void {
   for (const [enemyId, amount] of totals) floatOverEnemy(enemyId, `-${amount}`, 'damage');
 }
 
+/** A red number over the player panel for stolen paint, shown with the final state of a move. */
+function floatThefts(events: BattleEvent[]): void {
+  for (const e of events) {
+    if (e.type === 'paintStolen') floatOverPlayer(`-${e.amount} ${e.color}`, 'damage');
+  }
+}
+
+/** Green numbers for boss healing, shown with the final state of a move. */
+function floatHeals(events: BattleEvent[]): void {
+  for (const e of events) {
+    if (e.type === 'bossHealed' && e.amount > 0) floatOverEnemy(e.enemyId, `+${e.amount}`, 'heal');
+  }
+}
+
 const FULL_PAINT = { red: PAINT_MAX, yellow: PAINT_MAX, blue: PAINT_MAX };
 
 export function startSession(root: HTMLElement, seed: number, options: SessionOptions): void {
@@ -81,7 +100,8 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
       message = 'Stage 1: battle. Swipe a bottle to match three. White bottles hurt enemies; paint can be spent or mixed.';
     } else {
       const stage = STAGES[mode.stage - 1]!;
-      const enemies = mode.kind === 'boss' ? [stage.boss] : stage.battle;
+      const ability = options.ability ?? drawBossAbilities(rng, 1)[0] ?? undefined;
+      const enemies = mode.kind === 'boss' ? [{ ...stage.boss, ability }] : stage.battle;
       state = createBattle(rng, { enemies, paint: options.fullPaint ? FULL_PAINT : undefined });
       message = `Test ${mode.kind}, stage ${mode.stage}. Swipe a bottle to match three.`;
     }
@@ -156,7 +176,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
       return;
     }
     setBattle(result.state);
-    message = describe(result.events);
+    message = describe(result.events, baseView().bossFight === true);
     draw();
     floatCommandDamage(result.events);
   };
@@ -176,8 +196,10 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
       busy = true;
       if (!reducedMotion()) await playMove(root, state, a, b, result, message, baseView());
       setBattle(result.state);
-      message = describe(result.events);
+      message = describe(result.events, baseView().bossFight === true);
       draw(attackEffects(result.events));
+      floatHeals(result.events);
+      floatThefts(result.events);
       if (!reducedMotion()) {
         const hits = result.events.filter((e) => e.type === 'enemyAttacked');
         const total = hits.reduce((sum, e) => sum + (e.type === 'enemyAttacked' ? e.damage : 0), 0);

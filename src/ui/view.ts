@@ -2,7 +2,7 @@ import type { BattleState, Enemy } from '../game/battle';
 import type { Cell } from '../game/board';
 import { GAME_TITLE } from '../game/title';
 import { WEAPON_INFO, WEAPON_LIST } from './weapons';
-import { PAINT_COLORS, PAINT_MAX, PLAYER_START_HP, type Bottle, type MixColor, type PaintColor, type Weapon } from '../game/rules';
+import { PAINT_COLORS, PAINT_MAX, PLAYER_START_HP, type Bottle, type BossAbility, type MixColor, type PaintColor, type Weapon } from '../game/rules';
 
 // Drawing only: this file turns a BattleState into DOM and decides nothing about the rules.
 
@@ -48,12 +48,16 @@ export function shape(type: Bottle | MixColor): HTMLElement {
   return wrap;
 }
 
+const ABILITY_LABELS: Record<BossAbility, string> = {
+  paintThief: 'Paint thief', inkBlot: 'Ink blot', shield: 'Shield', heal: 'Heal',
+};
+
 function enemyCard(enemy: Enemy, view: ViewOptions): HTMLElement {
   const name = view.bossFight ? 'Boss' : `Canvas ${enemy.id + 1}`;
   const card = el('div', `enemy${view.bossFight ? ' boss' : ''}${view.attackedEnemies?.includes(enemy.id) ? ' attack' : ''}`, {
     'data-enemy-id': String(enemy.id),
     role: 'group',
-    'aria-label': `${name}: ${Math.max(0, enemy.hp)} of ${enemy.maxHp} HP, attacks in ${enemy.countdown} turns`,
+    'aria-label': `${name}: ${Math.max(0, enemy.hp)} of ${enemy.maxHp} HP, attacks in ${enemy.countdown} turns${enemy.ability ? `, ${ABILITY_LABELS[enemy.ability.kind]} in ${enemy.ability.countdown}` : ''}`,
   });
   card.append(el('h2', '', {}, name));
   const bar = el('div', 'bar');
@@ -61,6 +65,12 @@ function enemyCard(enemy: Enemy, view: ViewOptions): HTMLElement {
   bar.append(el('div', 'fill', { style: `width:${(hp / enemy.maxHp) * 100}%` }));
   card.append(bar, el('div', '', {}, `HP ${hp}/${enemy.maxHp}`));
   card.append(el('div', 'countdown', {}, `Attacks in ${enemy.countdown}`));
+  if (enemy.ability) {
+    // Pulses when the ability is one turn away, so the player has a warning.
+    const label = ABILITY_LABELS[enemy.ability.kind];
+    const n = enemy.ability.countdown;
+    card.append(el('div', `ability${n === 1 ? ' soon' : ''}`, {}, `${label}: acts in ${n}`));
+  }
   card.append(el('div', 'status', {}, enemy.burn ? `Burn ${enemy.burn.damage} x ${enemy.burn.turnsLeft}` : ''));
   return card;
 }

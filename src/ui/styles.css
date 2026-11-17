@@ -48,6 +48,8 @@ button { cursor: pointer; font-weight: 700; }
 .enemy { background: var(--panel); border: 2px solid var(--ink); border-radius: var(--radius); padding: 8px; min-height: 96px; position: relative; font-size: .85rem; }
 .enemy h2 { margin: 0 0 4px; font-size: .9rem; }
 .enemy .countdown { font-weight: 800; font-size: 1.05rem; }
+.enemy .ability { font-weight: 700; color: var(--accent); }
+.enemy .ability.soon { animation: abilityPulse .8s ease-in-out infinite; }
 .enemy .status { color: var(--muted); min-height: 1.2em; }
 .enemy.attack { animation: shake .4s; background: #fee2e2; }
 .enemy.empty { border-style: dashed; opacity: .55; display: grid; place-items: center; }
@@ -121,6 +123,7 @@ button { cursor: pointer; font-weight: 700; }
   animation: fxRise 1.1s ease-out forwards;
 }
 .fx-damage { color: #b91c1c; }
+.fx-heal { color: var(--green); }
 .fx-paint { color: var(--ink); }
 .fx-paint::before { content: ''; display: inline-block; width: .7em; height: .7em; border-radius: 50%; background: var(--c, var(--ink)); border: 2px solid var(--ink); margin-right: .25em; vertical-align: -.05em; }
 .fx-combo { color: var(--accent); font-size: 1.9rem; letter-spacing: .02em; }
@@ -143,6 +146,7 @@ button { cursor: pointer; font-weight: 700; }
   91% { transform: translateY(-7%); animation-timing-function: ease-in; }
   100% { transform: translateY(0); }
 }
+@keyframes abilityPulse { 50% { transform: scale(1.12); background: #fde68a; } }
 @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 @keyframes fxRise {
   0% { transform: translate(-50%, -30%) scale(.6); opacity: 0; }

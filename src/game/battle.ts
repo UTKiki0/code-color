@@ -1,8 +1,8 @@
 import { createBoard, swap, type Board, type BoardEvent, type Cell } from './board';
 import type { Rng } from './rng';
 import {
-  ENEMY_ATTACK_DAMAGE, PAINT_COLORS, PAINT_MAX, PLAYER_START_HP, STAGES,
-  whiteMatchDamage, type Bottle, type EffectName, type EnemyDef, type MixColor, type PaintColor, type Weapon,
+  ABILITY_COUNTDOWN, BOSS_HEAL_AMOUNT, ENEMY_ATTACK_DAMAGE, PAINT_THIEF_AMOUNT, PAINT_COLORS, PAINT_MAX, PLAYER_START_HP, STAGES,
+  whiteMatchDamage, type Bottle, type BossAbility, type EffectName, type EnemyDef, type MixColor, type PaintColor, type Weapon,
 } from './rules';
 
 export interface Burn {
@@ -18,6 +18,7 @@ export interface Enemy {
   countdown: number; // turns until this enemy attacks
   attack: number; // damage dealt to the player when it attacks
   burn: Burn | null;
+  ability: { kind: BossAbility; countdown: number } | null; // bosses only
 }
 
 export interface BattleState {
@@ -48,6 +49,8 @@ export type BattleEvent =
   | { type: 'rainbow' }
   | { type: 'enemyDied'; enemyId: number }
   | { type: 'enemyAttacked'; enemyId: number; damage: number }
+  | { type: 'paintStolen'; enemyId: number; color: PaintColor; amount: number } // amount actually taken
+  | { type: 'bossHealed'; enemyId: number; amount: number } // amount actually healed, after the cap
   | { type: 'won' }
   | { type: 'lost' };
 
@@ -83,6 +86,7 @@ export function createBattle(rng: Rng, setup: BattleSetup = {}): BattleState {
       countdown: e.countdown,
       attack: e.attack ?? ENEMY_ATTACK_DAMAGE,
       burn: null,
+      ability: e.ability ? { kind: e.ability, countdown: ABILITY_COUNTDOWN } : null,
     })),
     status: 'playing',
   };
@@ -126,6 +130,36 @@ export function removeDeadEnemies(enemies: Enemy[], events: BattleEvent[]): Enem
 export function statusFor(enemies: Enemy[], playerHp: number): BattleState['status'] {
   if (enemies.length === 0) return 'won';
   return playerHp === 0 ? 'lost' : 'playing';
+}
+
+/** Performs a boss's ability. One place for all abilities; each has its own case. */
+/** The paint color with the most stored; a tie is broken at random. */
+export function fullestBottle(paint: Record<PaintColor, number>, rng: Rng): PaintColor {
+  const most = Math.max(...PAINT_COLORS.map((c) => paint[c]));
+  const tied = PAINT_COLORS.filter((c) => paint[c] === most);
+  return tied[Math.floor(rng() * tied.length)]!;
+}
+
+function useAbility(boss: Enemy, paint: Record<PaintColor, number>, rng: Rng, events: BattleEvent[]): void {
+  switch (boss.ability!.kind) {
+    case 'heal': {
+      const amount = Math.min(BOSS_HEAL_AMOUNT, boss.maxHp - boss.hp);
+      boss.hp += amount;
+      events.push({ type: 'bossHealed', enemyId: boss.id, amount });
+      break;
+    }
+    case 'paintThief': {
+      // Takes from the fullest bottle (a tie is random). Nothing to take, nothing happens.
+      const fullest = fullestBottle(paint, rng);
+      const amount = Math.min(PAINT_THIEF_AMOUNT, paint[fullest]);
+      if (amount === 0) break;
+      paint[fullest] -= amount;
+      events.push({ type: 'paintStolen', enemyId: boss.id, color: fullest, amount });
+      break;
+    }
+    default:
+      break; // the other abilities are built in later steps
+  }
 }
 
 /**
@@ -193,6 +227,15 @@ export function takeTurn(state: BattleState, a: Cell, b: Cell, rng: Rng): TurnRe
     playerHp = Math.max(0, playerHp - enemy.attack);
     events.push({ type: 'enemyAttacked', enemyId: enemy.id, damage: enemy.attack });
     enemy.countdown = enemy.startCountdown;
+  }
+
+  // 5b. Boss abilities count down after the attacks and act at zero.
+  for (const enemy of enemies) {
+    if (!enemy.ability) continue;
+    enemy.ability = { ...enemy.ability, countdown: enemy.ability.countdown - 1 };
+    if (enemy.ability.countdown > 0) continue;
+    useAbility(enemy, paint, rng, events);
+    enemy.ability.countdown = ABILITY_COUNTDOWN;
   }
 
   // 6. Win and lose. With no enemies left nothing can have attacked this turn.

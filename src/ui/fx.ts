@@ -3,7 +3,7 @@ import type { Cell } from '../game/board';
 // Short-lived floating text (damage, paint, combo). It lives on the page itself,
 // not inside the redrawn game DOM, so it keeps animating while the board is redrawn.
 
-export type FxKind = 'damage' | 'paint' | 'combo' | 'info';
+export type FxKind = 'damage' | 'heal' | 'paint' | 'combo' | 'info';
 
 /** Page position of the middle of an element. */
 function centerOf(el: Element): { x: number; y: number } {
