@@ -1,9 +1,8 @@
 import { removeDeadEnemies, statusFor, type BattleEvent, type BattleState, type TurnResult } from './battle';
 import { applyEffect, breakShield } from './effects';
-import type { Rng } from './rng';
 import {
   BRUSH_RED_BURN_TURNS, BRUSH_YELLOW_EXTRA_DAMAGE, MIX_COLORS, MIX_EFFECTS, MIX_RECIPES, PAINT_EFFECTS, PAINT_MAX,
-  RAINBOW_DAMAGE, SPEND_COST, type Effect, type PaintColor,
+  PLAYER_START_HP, RAINBOW_EFFECT, SPEND_COST, type Effect, type PaintColor,
 } from './rules';
 
 // Paint commands. None of them is a turn: they never advance countdowns or tick burn.
@@ -57,24 +56,35 @@ export function mix(state: BattleState, a: PaintColor, b: PaintColor): TurnResul
 }
 
 /**
- * Uses the held mix: on an enemy, or on the full bottle of the third paint to
- * make rainbow (damage to every enemy plus a random mix effect on each survivor).
+ * Uses the held mix. Green goes on the player (it heals); the other mixes go on an enemy (an
+ * effect with allEnemies hits every living enemy). Dropping a mix on the third paint's full
+ * bottle makes rainbow instead.
  */
 export function useMix(
   state: BattleState,
-  target: { enemyId: number } | { color: PaintColor },
-  rng: Rng,
+  target: { enemyId: number } | { color: PaintColor } | { player: true },
 ): TurnResult {
   const held = state.heldMix;
   if (state.status !== 'playing' || !held) return reject(state);
+  const effect = MIX_EFFECTS[held];
   const enemies = state.enemies.map((e) => ({ ...e }));
 
+  if ('player' in target) {
+    // Refused at full HP, so a mix is not wasted by accident.
+    if (!effect.healPlayer || state.playerHp >= PLAYER_START_HP) return reject(state);
+    const amount = Math.min(effect.healPlayer, PLAYER_START_HP - state.playerHp);
+    const events: BattleEvent[] = [{ type: 'mixUsed', mix: held }, { type: 'playerHealed', amount }];
+    return finish(state, { playerHp: state.playerHp + amount, heldMix: null }, events);
+  }
+
   if ('enemyId' in target) {
-    const enemy = enemies.find((e) => e.id === target.enemyId && e.hp > 0);
-    if (!enemy) return reject(state);
+    const chosen = enemies.find((e) => e.id === target.enemyId && e.hp > 0);
+    if (!chosen || effect.healPlayer) return reject(state);
     const events: BattleEvent[] = [{ type: 'mixUsed', mix: held }];
-    applyEffect(enemy, MIX_EFFECTS[held], held, events);
-    breakShield(enemy, events);
+    for (const enemy of effect.allEnemies ? enemies.filter((e) => e.hp > 0) : [chosen]) {
+      applyEffect(enemy, effect, held, events);
+      breakShield(enemy, events);
+    }
     return finish(state, { enemies, heldMix: null }, events);
   }
 
@@ -84,13 +94,8 @@ export function useMix(
   }
   const events: BattleEvent[] = [{ type: 'rainbow' }];
   for (const enemy of enemies) {
-    enemy.hp -= RAINBOW_DAMAGE;
-    events.push({ type: 'enemyDamaged', enemyId: enemy.id, amount: RAINBOW_DAMAGE, source: 'rainbow' });
+    applyEffect(enemy, RAINBOW_EFFECT, 'rainbow', events, 'rainbow');
     breakShield(enemy, events);
-  }
-  for (const enemy of enemies.filter((e) => e.hp > 0)) {
-    const name = MIX_COLORS[Math.floor(rng() * MIX_COLORS.length)]!; // rolled per enemy
-    applyEffect(enemy, MIX_EFFECTS[name], name, events);
   }
   const paint = { ...state.paint, [target.color]: 0 };
   return finish(state, { enemies, heldMix: null, paint }, events);

@@ -18,6 +18,7 @@ export interface Enemy {
   startCountdown: number; // the countdown value an attack resets to
   countdown: number; // turns until this enemy attacks
   attack: number; // damage dealt to the player when it attacks
+  boss: boolean; // some effects do more damage to a boss
   burn: Burn | null;
   // Bosses only. For every ability but shield, the turns until it acts. For shield, 0 means the
   // shield is up and above 0 is the turns until it returns after paint broke it.
@@ -56,6 +57,7 @@ export type BattleEvent =
   | { type: 'inkBlotted'; enemyId: number; cells: Cell[] } // bottles turned into empties
   | { type: 'shieldBroken'; enemyId: number }
   | { type: 'shieldRestored'; enemyId: number }
+  | { type: 'playerHealed'; amount: number } // HP actually restored, after the cap
   | { type: 'bossHealed'; enemyId: number; amount: number } // amount actually healed, after the cap
   | { type: 'won' }
   | { type: 'lost' };
@@ -91,6 +93,7 @@ export function createBattle(rng: Rng, setup: BattleSetup = {}): BattleState {
       startCountdown: e.countdown,
       countdown: e.countdown,
       attack: e.attack ?? ENEMY_ATTACK_DAMAGE,
+      boss: e.boss ?? false,
       burn: null,
       // A shield starts up (countdown 0); every other ability starts its countdown at the full value.
       ability: e.ability ? { kind: e.ability, countdown: e.ability === 'shield' ? 0 : ABILITY_COUNTDOWN } : null,

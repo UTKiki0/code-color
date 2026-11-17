@@ -120,7 +120,7 @@ function palette(state: BattleState): HTMLElement {
     root.append(store);
   }
   if (state.heldMix) {
-    const held = el('div', 'held', { 'data-held': state.heldMix, 'aria-label': `Held ${state.heldMix} mix. Drag onto an enemy or a full paint bottle.` });
+    const held = el('div', 'held', { 'data-held': state.heldMix, 'aria-label': `Held ${state.heldMix} mix. ${state.heldMix === 'green' ? 'Drag onto your panel to heal, or' : 'Drag onto an enemy, or'} onto the full paint bottle that is not in it to make rainbow.` });
     held.append(shape(state.heldMix), el('span', '', {}, `${cap(state.heldMix)} mix`));
     root.append(held);
   } else {
@@ -171,7 +171,7 @@ export function renderBattle(root: HTMLElement, state: BattleState, view: ViewOp
     enemies.append(enemy ? enemyCard(enemy, view) : el('div', 'enemy empty', {}, 'Defeated'));
   }
 
-  const player = el('section', `player${view.playerHit ? ' hit' : ''}`, { 'aria-label': 'Player' });
+  const player = el('section', `player${view.playerHit ? ' hit' : ''}${state.heldMix === 'green' ? ' droppable' : ''}`, { 'aria-label': 'Player' });
   const row = el('div', 'row');
   row.append(el('span', '', {}, `You (${WEAPON_INFO[state.weapon].label})`), el('span', '', {}, `HP ${state.playerHp}/${PLAYER_START_HP}`));
   const bar = el('div', 'bar hp');

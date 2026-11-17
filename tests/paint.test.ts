@@ -3,7 +3,7 @@ import { takeTurn } from '../src/game/battle';
 import { findMatches } from '../src/game/board';
 import { mix, spend, useMix } from '../src/game/paint';
 import { createRng } from '../src/game/rng';
-import { PAINT_MAX, RAINBOW_DAMAGE, whiteMatchDamage, type Weapon } from '../src/game/rules';
+import { MIX_EFFECTS, PAINT_MAX, PLAYER_START_HP, RAINBOW_EFFECT, whiteMatchDamage, type Weapon } from '../src/game/rules';
 import { battleOn, cycleRng, enemy, withEdits } from './helpers';
 
 const rng = createRng(1);
@@ -131,37 +131,73 @@ describe('mix', () => {
   });
 });
 
-describe('using a mix on an enemy', () => {
-  const held = (m: 'green' | 'purple' | 'orange', enemies = [enemy(0, { countdown: 1 }), enemy(1)]) =>
-    ({ ...state({}, enemies), heldMix: m });
+describe('using a mix', () => {
+  const held = (m: 'green' | 'purple' | 'orange', enemies = [enemy(0, { countdown: 1 }), enemy(1)], over = {}) =>
+    ({ ...state({}, enemies), heldMix: m, ...over });
 
-  it('green resets the countdown to its start', () => {
-    const result = useMix(held('green'), { enemyId: 0 }, rng);
-    expect(result.state.enemies[0]!.countdown).toBe(4);
+  it('green heals the player 5 HP when dropped on the player, and touches no enemy', () => {
+    const before = held('green', undefined, { playerHp: 10 });
+    const result = useMix(before, { player: true });
+    expect(result.ok).toBe(true);
+    expect(result.state.playerHp).toBe(10 + MIX_EFFECTS.green.healPlayer!);
+    expect(result.state.heldMix).toBeNull();
+    expect(result.state.enemies).toEqual(before.enemies);
+    expect(result.events).toContainEqual({ type: 'playerHealed', amount: 5 });
+  });
+
+  it('green cannot heal above max HP, and reports the amount actually healed', () => {
+    const result = useMix(held('green', undefined, { playerHp: PLAYER_START_HP - 2 }), { player: true });
+    expect(result.state.playerHp).toBe(PLAYER_START_HP);
+    expect(result.events).toContainEqual({ type: 'playerHealed', amount: 2 });
+  });
+
+  it('green is refused at full HP, so the mix is kept', () => {
+    const result = useMix(held('green', undefined, { playerHp: PLAYER_START_HP }), { player: true });
+    expect(result.ok).toBe(false);
+    expect(result.state.heldMix).toBe('green');
+  });
+
+  it('green is refused on an enemy, and the other mixes are refused on the player', () => {
+    expect(useMix(held('green', undefined, { playerHp: 5 }), { enemyId: 0 }).ok).toBe(false);
+    expect(useMix(held('purple', undefined, { playerHp: 5 }), { player: true }).ok).toBe(false);
+    expect(useMix(held('orange', undefined, { playerHp: 5 }), { player: true }).ok).toBe(false);
+  });
+
+  it('purple adds 2 to the countdown and burns for 3 over 3 turns, on the chosen enemy only', () => {
+    const before = held('purple');
+    const result = useMix(before, { enemyId: 0 });
+    expect(result.state.enemies[0]).toMatchObject({ countdown: 3, burn: { damage: 3, turnsLeft: 3 } });
+    expect(result.state.enemies[1]).toEqual(before.enemies[1]);
+  });
+
+  it('orange deals 5 damage to every living enemy, wherever it is dropped', () => {
+    const enemies = [enemy(0, { hp: 10 }), enemy(1, { hp: 10 }), enemy(2, { hp: 10 })];
+    const result = useMix(held('orange', enemies), { enemyId: 1 });
+    expect(result.state.enemies.map((e) => e.hp)).toEqual([5, 5, 5]);
     expect(result.state.heldMix).toBeNull();
   });
 
-  it('purple adds 2 to the countdown and burns for 2 over 3 turns', () => {
-    const result = useMix(held('purple'), { enemyId: 0 }, rng);
-    expect(result.state.enemies[0]).toMatchObject({ countdown: 3, burn: { damage: 2, turnsLeft: 3 } });
+  it('orange deals 15 to a boss', () => {
+    const result = useMix(held('orange', [enemy(0, { hp: 30, maxHp: 30, boss: true })]), { enemyId: 0 });
+    expect(result.state.enemies[0]!.hp).toBe(15);
   });
 
-  it('orange burns for 3 over 3 turns and refreshes an existing burn', () => {
-    const burning = enemy(0, { burn: { damage: 1, turnsLeft: 1 } });
-    const result = useMix(held('orange', [burning]), { enemyId: 0 }, rng);
-    expect(result.state.enemies[0]!.burn).toEqual({ damage: 3, turnsLeft: 3 });
+  it('orange kills what it can and wins the battle if that is everyone', () => {
+    const result = useMix(held('orange', [enemy(0, { hp: 5 }), enemy(1, { hp: 5 })]), { enemyId: 0 });
+    expect(result.events.filter((e) => e.type === 'enemyDied')).toHaveLength(2);
+    expect(result.state.status).toBe('won');
   });
 
   it('is rejected with no held mix, or for a missing or dead enemy', () => {
-    expect(useMix(state({}), { enemyId: 0 }, rng).ok).toBe(false);
-    expect(useMix(held('green'), { enemyId: 99 }, rng).ok).toBe(false);
-    expect(useMix(held('green', [enemy(0, { hp: 0 })]), { enemyId: 0 }, rng).ok).toBe(false);
+    expect(useMix(state({}), { enemyId: 0 }).ok).toBe(false);
+    expect(useMix(held('purple'), { enemyId: 99 }).ok).toBe(false);
+    expect(useMix(held('purple', [enemy(0, { hp: 0 })]), { enemyId: 0 }).ok).toBe(false);
   });
 
-  it('leaves the other enemies untouched', () => {
-    const before = held('purple');
-    const result = useMix(before, { enemyId: 0 }, rng);
-    expect(result.state.enemies[1]).toEqual(before.enemies[1]);
+  it('is not a turn: countdowns and burn do not advance', () => {
+    const burning = enemy(0, { hp: 20, countdown: 2, burn: { damage: 1, turnsLeft: 2 } });
+    const result = useMix(held('orange', [burning]), { enemyId: 0 });
+    expect(result.state.enemies[0]).toMatchObject({ hp: 15, countdown: 2, burn: { damage: 1, turnsLeft: 2 } });
   });
 });
 
@@ -172,61 +208,56 @@ describe('board lock', () => {
     expect(blocked.ok).toBe(false);
     expect(blocked.state).toBe(held);
 
-    const used = useMix(held, { enemyId: 0 }, rng).state;
+    const used = useMix(held, { enemyId: 0 }).state;
     expect(takeTurn(used, ...SWAP, cycleRng([0.4, 0.7, 0.9])).ok).toBe(true);
   });
 });
 
 describe('rainbow', () => {
   // A purple mix (red + blue) is held; yellow is the third color.
-  const rainbowState = (enemies = [enemy(0, { hp: 20 }), enemy(1, { hp: 20 }), enemy(2, { hp: 20 })]) =>
+  const rainbowState = (enemies = [enemy(0, { hp: 30 }), enemy(1, { hp: 30 }), enemy(2, { hp: 30 })]) =>
     ({ ...state({ yellow: 9 }, enemies), heldMix: 'purple' as const });
 
-  it('damages every enemy for 6 and consumes the third bottle', () => {
-    const result = useMix(rainbowState(), { color: 'yellow' }, cycleRng([0]));
+  it('damages every enemy for 10 and consumes the third bottle and the mix', () => {
+    const result = useMix(rainbowState(), { color: 'yellow' });
     expect(result.ok).toBe(true);
-    expect(result.state.enemies.map((e) => e.hp)).toEqual([20 - RAINBOW_DAMAGE, 14, 14]);
+    expect(result.state.enemies.map((e) => e.hp)).toEqual([30 - RAINBOW_EFFECT.damage!, 20, 20]);
     expect(result.state.paint.yellow).toBe(0);
     expect(result.state.heldMix).toBeNull();
   });
 
-  it('rolls a random mix effect separately for each enemy', () => {
-    // Rolls 0, 0.4, 0.9 pick green, purple, orange.
-    const before = rainbowState([
-      enemy(0, { hp: 20, countdown: 1 }), enemy(1, { hp: 20, countdown: 1 }), enemy(2, { hp: 20, countdown: 1 }),
-    ]);
-    const result = useMix(before, { color: 'yellow' }, cycleRng([0, 0.4, 0.9]));
-    const [a, b, c] = result.state.enemies;
-    expect(a).toMatchObject({ countdown: 4, burn: null }); // green: reset
-    expect(b).toMatchObject({ countdown: 3, burn: { damage: 2, turnsLeft: 3 } }); // purple
-    expect(c).toMatchObject({ countdown: 1, burn: { damage: 3, turnsLeft: 3 } }); // orange
+  it('deals 20 to a boss', () => {
+    const result = useMix(rainbowState([enemy(0, { hp: 50, maxHp: 50, boss: true })]), { color: 'yellow' });
+    expect(result.state.enemies[0]!.hp).toBe(30);
   });
 
-  it('gives no random effect to enemies the damage kills', () => {
-    const before = rainbowState([enemy(0, { hp: 6 }), enemy(1, { hp: 20, countdown: 1 })]);
-    // One roll only: the dead enemy must not consume one. 0 picks green.
-    const result = useMix(before, { color: 'yellow' }, cycleRng([0, 0.9]));
+  it('slows every surviving enemy by 3 and burns it for 2 over 3 turns', () => {
+    const result = useMix(rainbowState([enemy(0, { hp: 30, countdown: 2 }), enemy(1, { hp: 30, countdown: 4 })]), { color: 'yellow' });
+    expect(result.state.enemies[0]).toMatchObject({ countdown: 5, burn: { damage: 2, turnsLeft: 3 } });
+    expect(result.state.enemies[1]).toMatchObject({ countdown: 7, burn: { damage: 2, turnsLeft: 3 } });
+  });
+
+  it('gives no slow or burn to enemies the damage kills', () => {
+    const result = useMix(rainbowState([enemy(0, { hp: 10 }), enemy(1, { hp: 30 })]), { color: 'yellow' });
     expect(result.events).toContainEqual({ type: 'enemyDied', enemyId: 0 });
+    expect(result.events.filter((e) => e.type === 'effectApplied')).toEqual([{ type: 'effectApplied', enemyId: 1, effect: 'rainbow' }]);
     expect(result.state.enemies).toHaveLength(1);
-    expect(result.state.enemies[0]).toMatchObject({ id: 1, countdown: 4 }); // green reset
   });
 
   it('wins the battle when it kills every enemy', () => {
-    const result = useMix(rainbowState([enemy(0, { hp: 6 })]), { color: 'yellow' }, rng);
-    expect(result.state.status).toBe('won');
+    expect(useMix(rainbowState([enemy(0, { hp: 10 })]), { color: 'yellow' }).state.status).toBe('won');
   });
 
   it('needs the third color: not a color already in the mix, and full', () => {
-    expect(useMix(rainbowState(), { color: 'red' }, rng).ok).toBe(false); // red is in purple
+    expect(useMix(rainbowState(), { color: 'red' }).ok).toBe(false); // red is in purple
     const notFull = { ...rainbowState(), paint: { red: 0, yellow: 8, blue: 0 } };
-    expect(useMix(notFull, { color: 'yellow' }, rng).ok).toBe(false);
+    expect(useMix(notFull, { color: 'yellow' }).ok).toBe(false);
   });
 
-  it('is not a turn: countdowns and burn do not advance', () => {
-    const burning = enemy(0, { hp: 20, countdown: 2, burn: { damage: 1, turnsLeft: 2 } });
-    const result = useMix(rainbowState([burning]), { color: 'yellow' }, cycleRng([0.9]));
-    // Orange replaces the burn but nothing ticked: HP is only reduced by the rainbow damage.
-    expect(result.state.enemies[0]).toMatchObject({ hp: 14, countdown: 2 });
+  it('is not a turn: it replaces a burn but nothing ticks', () => {
+    const burning = enemy(0, { hp: 30, countdown: 2, burn: { damage: 1, turnsLeft: 2 } });
+    const result = useMix(rainbowState([burning]), { color: 'yellow' });
+    expect(result.state.enemies[0]).toMatchObject({ hp: 20, countdown: 5, burn: { damage: 2, turnsLeft: 3 } });
   });
 });
 

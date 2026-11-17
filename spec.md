@@ -63,10 +63,11 @@ The first playable milestone remains one battle demonstrating bottle matching, c
 - The mixed paint is held, shown over the storage bottles. The player then drags it onto an enemy to apply it, or onto the one remaining full paint bottle to make rainbow. Nothing is applied until the player drops it.
 - Rainbow therefore takes two drags: first a mix of any two colors, then that mix onto the third full color. The player consumes 9 of each color in total.
 - Only one mix can be held at a time, and a mix cannot be cancelled. While a mix is held, the board is locked: the player must use the mix before swiping again, so a held mix never carries into a move.
-- Green (blue + yellow): resets the enemy's countdown to its start.
-- Purple (red + blue): countdown +2, then burn of 2 damage per turn for 3 turns.
-- Orange (red + yellow): burn of 3 damage per turn for 3 turns.
-- Rainbow (a held mix dropped onto the remaining full third color): 6 damage to all enemies, plus one random effect from green, purple, or orange, rolled separately for each enemy. The damage lands first, so enemies it kills get no random effect.
+- Green (blue + yellow): heals the player 5 HP, up to the 20 maximum. It is dropped on the player panel (which is outlined while a green mix is held) and does nothing to enemies. At full HP the drop is refused and the mix is kept (Agent's choice, so no mix is wasted by accident, not yet reviewed). It no longer resets a countdown. (Developer decision, 2026-11-17.)
+- Purple (red + blue): countdown +2, then burn of 3 damage per turn for 3 turns (was 2). (Developer decision, 2026-11-17.)
+- Orange (red + yellow): a spread attack that deals 5 damage to every living enemy, or 15 to a boss; dropped on any enemy. It replaces the burn. (Developer decision, 2026-11-17.)
+- Rainbow (a held mix dropped onto the remaining full third color): 10 damage to every living enemy (20 to a boss), countdown +3, and burn of 2 damage per turn for 3 turns on every enemy that survives. It replaces the random mix effect. (Developer decision, 2026-11-17.)
+- A boss is the single enemy of a boss fight. Mix and rainbow damage is paint damage: it is not halved by a shield, and it breaks the shield. Enemies the damage kills get no slow or burn.
 
 **Weapons** (Developer-approved 2026-11-16; effects are starting values)
 - **Paintball gun:** white matches deal +1 damage (so 3 whites = 2, 4 = 3). The Developer chose the effect on 2026-11-16 but not the amount; +1 per match is a provisional starting value. The first character starts with it.

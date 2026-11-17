@@ -61,6 +61,7 @@ button { cursor: pointer; font-weight: 700; }
 
 /* ---- Player ---- */
 .player { background: var(--panel); border: 2px solid var(--ink); border-radius: var(--radius); padding: 8px 12px; }
+.player.droppable { box-shadow: 0 0 0 4px #bbf7d0, 0 0 0 6px var(--green); } /* a held green mix is dropped here */
 .player.hit { animation: shake .4s; background: #fee2e2; }
 .player .row { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 4px; }
 

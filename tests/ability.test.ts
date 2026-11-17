@@ -229,13 +229,19 @@ describe('shield ability', () => {
   });
 
   it('is broken by a used mix and by rainbow', () => {
-    const viaMix = useMix(battleOn(board(), [shielded()], { heldMix: 'green' }), { enemyId: 0 }, refill());
+    const viaMix = useMix(battleOn(board(), [shielded()], { heldMix: 'purple' }), { enemyId: 0 });
     expect(viaMix.events).toContainEqual({ type: 'shieldBroken', enemyId: 0 });
     const viaRainbow = useMix(
       battleOn(board(), [shielded()], { heldMix: 'green', paint: { red: 9, yellow: 0, blue: 0 } }),
-      { color: 'red' }, refill(),
+      { color: 'red' },
     );
     expect(viaRainbow.events).toContainEqual({ type: 'shieldBroken', enemyId: 0 });
+  });
+
+  it('is broken by orange, whose boss damage is not halved', () => {
+    const r = useMix(battleOn(board(), [shielded(0, { boss: true })], { heldMix: 'orange' }), { enemyId: 0 });
+    expect(r.state.enemies[0]!.hp).toBe(15);
+    expect(r.events).toContainEqual({ type: 'shieldBroken', enemyId: 0 });
   });
 
   it('is not broken by white damage, and a regular enemy is not affected by paint breaking anything', () => {
@@ -289,6 +295,13 @@ describe('boss abilities in a run', () => {
     expect(run.encounter).toBe('boss');
     expect(run.battle.enemies[0]!.ability?.kind).toBe(planned[0]);
     expect(run.bossAbilities).toBe(planned);
+  });
+
+  it('only the boss encounters are marked as bosses', () => {
+    let run = createRun(createRng(3));
+    expect(run.battle.enemies.every((e) => !e.boss)).toBe(true);
+    run = continueRun(updateBattle(run, { ...run.battle, enemies: [], status: 'won' }, createRng(1)), createRng(1));
+    expect(run.battle.enemies.map((e) => e.boss)).toEqual([true]);
   });
 
   it('regular enemies never get an ability', () => {

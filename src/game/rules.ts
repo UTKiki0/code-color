@@ -49,6 +49,7 @@ export interface EnemyDef {
   hp: number;
   countdown: number;
   attack?: number; // damage to the player; defaults to ENEMY_ATTACK_DAMAGE
+  boss?: boolean; // some effects do more damage to a boss
   ability?: BossAbility; // bosses only; chosen per run, not listed in STAGES
 }
 
@@ -71,15 +72,15 @@ export interface Stage {
 export const STAGES: Stage[] = [
   {
     battle: [{ hp: 10, countdown: 4 }, { hp: 10, countdown: 5 }, { hp: 10, countdown: 6 }],
-    boss: { hp: 30, countdown: 5, attack: 4 },
+    boss: { hp: 30, countdown: 5, attack: 4, boss: true },
   },
   {
     battle: [{ hp: 12, countdown: 4 }, { hp: 12, countdown: 4 }, { hp: 12, countdown: 5 }],
-    boss: { hp: 40, countdown: 5, attack: 5 },
+    boss: { hp: 40, countdown: 5, attack: 5, boss: true },
   },
   {
     battle: [{ hp: 14, countdown: 3 }, { hp: 14, countdown: 4 }, { hp: 14, countdown: 5 }],
-    boss: { hp: 50, countdown: 5, attack: 6 },
+    boss: { hp: 50, countdown: 5, attack: 6, boss: true },
   },
 ];
 
@@ -91,12 +92,14 @@ export const POST_BOSS_HEAL = 10;
 export const SPEND_COST = 3; // paint used by one direct spend on an enemy
 
 // An effect is data: damage now, countdown change, and/or a burn. One shared
-// function (effects.ts) applies any effect, so a new paint is a new entry here.
+// function (effects.ts) applies any effect to an enemy, so a new paint is a new entry here.
 export interface Effect {
   damage?: number;
+  bossDamage?: number; // damage instead of `damage` when the enemy is a boss
+  allEnemies?: boolean; // used on one enemy, it hits every living enemy
   slow?: number; // turns added to the enemy's countdown
-  resetCountdown?: boolean;
   burn?: { damage: number; turns: number }; // replaces any current burn
+  healPlayer?: number; // HP the player regains (used on the player, not on an enemy)
 }
 
 export const PAINT_EFFECTS: Record<PaintColor, Effect> = {
@@ -111,7 +114,7 @@ export const BRUSH_YELLOW_EXTRA_DAMAGE = 1;
 
 export type MixColor = 'green' | 'purple' | 'orange';
 export const MIX_COLORS: MixColor[] = ['green', 'purple', 'orange'];
-export type EffectName = PaintColor | MixColor;
+export type EffectName = PaintColor | MixColor | 'rainbow';
 
 // Which two paints make each mix. Each mix consumes PAINT_MAX of both.
 export const MIX_RECIPES: Record<MixColor, [PaintColor, PaintColor]> = {
@@ -120,11 +123,15 @@ export const MIX_RECIPES: Record<MixColor, [PaintColor, PaintColor]> = {
   orange: ['red', 'yellow'],
 };
 
+// Mix effects (Developer decision, 2026-11-17): green heals the player, orange is a spread
+// attack, purple slows and burns. Green is dropped on the player; the others on an enemy.
 export const MIX_EFFECTS: Record<MixColor, Effect> = {
-  green: { resetCountdown: true },
-  purple: { slow: 2, burn: { damage: 2, turns: 3 } },
-  orange: { burn: { damage: 3, turns: 3 } },
+  green: { healPlayer: 5 },
+  purple: { slow: 2, burn: { damage: 3, turns: 3 } },
+  orange: { damage: 5, bossDamage: 15, allEnemies: true },
 };
 
 // Rainbow: a held mix dropped on the third paint's full bottle (which it consumes).
-export const RAINBOW_DAMAGE = 6; // to every enemy, before the random mix effect
+export const RAINBOW_EFFECT: Effect = {
+  damage: 10, bossDamage: 20, allEnemies: true, slow: 3, burn: { damage: 2, turns: 3 },
+};

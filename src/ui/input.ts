@@ -9,7 +9,7 @@ export interface Commands {
   swap(a: Cell, b: Cell): void;
   spend(color: PaintColor, enemyId: number): void;
   mix(a: PaintColor, b: PaintColor): void;
-  useMix(target: { enemyId: number } | { color: PaintColor }): void;
+  useMix(target: { enemyId: number } | { color: PaintColor } | { player: true }): void;
   setWeapon(weapon: Weapon): void;
   continueRun(): void;
   chooseWeapon(weapon: Weapon): void;
@@ -99,6 +99,7 @@ export function attachInput(root: HTMLElement, commands: Commands): void {
     const under = document.elementFromPoint(e.clientX, e.clientY);
     const enemyEl = under?.closest<HTMLElement>('[data-enemy-id]');
     const storeEl = under?.closest<HTMLElement>('[data-paint]');
+    const playerEl = under?.closest<HTMLElement>('.player');
     if (g.kind === 'paint') {
       if (enemyEl) commands.spend(g.color, Number(enemyEl.dataset.enemyId));
       else if (storeEl && storeEl.dataset.paint !== g.color) commands.mix(g.color, storeEl.dataset.paint as PaintColor);
@@ -106,6 +107,8 @@ export function attachInput(root: HTMLElement, commands: Commands): void {
       commands.useMix({ enemyId: Number(enemyEl.dataset.enemyId) });
     } else if (storeEl) {
       commands.useMix({ color: storeEl.dataset.paint as PaintColor });
+    } else if (playerEl) {
+      commands.useMix({ player: true });
     }
   });
 
