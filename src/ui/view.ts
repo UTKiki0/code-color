@@ -23,18 +23,19 @@ export interface ViewOptions {
   bossFight?: boolean; // one large boss card instead of three enemy cards
   testControls?: boolean; // show the weapon dropdown (a test setting)
   restartLabel?: string;
+  menuButton?: boolean; // show a Menu button (back to the character select screen) in the top bar
   // A screen over the game: between battles, run won or lost, or battle won or lost.
   overlay?: {
     title: string;
     lines: string[];
-    button?: { label: string; action: 'continue' | 'restart' };
+    buttons?: { label: string; action: 'continue' | 'restart' | 'menu' }[];
     choices?: { weapon: Weapon; label: string; description: string }[]; // weapon buttons after a boss
   };
 }
 
 const cap = (word: string) => word[0]!.toUpperCase() + word.slice(1);
 
-function el<K extends keyof HTMLElementTagNameMap>(
+export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K, className = '', attrs: Record<string, string> = {}, text?: string,
 ): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -155,14 +156,20 @@ function progressStrip(p: NonNullable<ViewOptions['progress']>): HTMLElement {
   return strip;
 }
 
+/** The game title shown at the top of every screen. */
+export function titleHeading(): HTMLElement {
+  const title = el('h1');
+  title.innerHTML = `<span class="code">Code:</span> <span class="color">${GAME_TITLE.split(': ')[1] ?? GAME_TITLE}</span>`;
+  return title;
+}
+
 /** Draws the whole battle into `root`, replacing what was there. */
 export function renderBattle(root: HTMLElement, state: BattleState, view: ViewOptions): void {
   const game = el('main', 'game');
   if (view.speed !== undefined) game.style.setProperty('--speed', String(view.speed));
 
   const top = el('header', 'topbar');
-  const title = el('h1');
-  title.innerHTML = `<span class="code">Code:</span> <span class="color">${GAME_TITLE.split(': ')[1] ?? GAME_TITLE}</span>`;
+  const title = titleHeading();
   const controls = el('div', 'controls');
   const select = el('select', '', { 'data-weapon': '', 'aria-label': 'Weapon (test setting)' });
   for (const w of WEAPON_LIST) {
@@ -172,6 +179,7 @@ export function renderBattle(root: HTMLElement, state: BattleState, view: ViewOp
   }
   if (view.testControls) controls.append(select);
   controls.append(el('button', '', { 'data-restart': '' }, view.restartLabel ?? 'Restart'));
+  if (view.menuButton) controls.append(el('button', '', { 'data-menu': '' }, 'Menu'));
   top.append(title, controls);
 
   const enemies = el('section', `enemies${view.bossFight ? ' boss-fight' : ''}`, { 'aria-label': 'Enemies' });
@@ -206,10 +214,12 @@ export function renderBattle(root: HTMLElement, state: BattleState, view: ViewOp
       }
       overlay.append(choices);
     }
-    if (view.overlay.button) {
-      const attr = view.overlay.button.action === 'continue' ? 'data-continue' : 'data-restart';
-      overlay.append(el('button', '', { [attr]: '' }, view.overlay.button.label));
+    const actions = el('div', 'overlay-buttons');
+    for (const b of view.overlay.buttons ?? []) {
+      const attr = b.action === 'continue' ? 'data-continue' : b.action === 'menu' ? 'data-menu' : 'data-restart';
+      actions.append(el('button', '', { [attr]: '' }, b.label));
     }
+    if (actions.childElementCount > 0) overlay.append(actions);
     game.append(overlay);
   }
   root.replaceChildren(game);

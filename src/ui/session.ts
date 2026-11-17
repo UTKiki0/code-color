@@ -1,14 +1,18 @@
+import { CHARACTERS, DEFAULT_CHARACTER, characterById, type CharacterId } from '../game/characters';
 import { createBattle, takeTurn, useItem as useItemTurn, type BattleEvent, type BattleState, type TurnResult } from '../game/battle';
 import type { Cell } from '../game/board';
 import { mix, spend, useMix } from '../game/paint';
 import { createRng, type Rng } from '../game/rng';
 import { chooseWeapon, continueRun, createRun, drawBossAbilities, nextEncounter, updateBattle, type RunState } from '../game/run';
 import { PAINT_MAX, PLAYER_START_HP, POST_BOSS_HEAL, SPEND_COST, STAGES, type BossAbility, type PaintColor } from '../game/rules';
+import { goalsReached, unlock } from '../game/unlocks';
+import { browserStorage, loadUnlocked, saveUnlocked, type KeyValueStorage } from '../save/save';
 import { floatOverEnemy, floatOverPlayer } from './fx';
 import { attachInput } from './input';
 import { ITEM_INFO } from './items';
 import { playItem, playMove } from './replay';
 import { WEAPON_INFO } from './weapons';
+import { renderSelect } from './select';
 import { renderBattle, type ViewOptions } from './view';
 
 // Holds the current run (or a single test battle), sends commands to game/, and plays the
@@ -21,6 +25,9 @@ export interface SessionOptions {
   mode: SessionMode;
   testing: boolean; // test setting: show the weapon dropdown during a run
   ability?: BossAbility; // test setting: the ability of a single test boss (default: drawn)
+  unlockAll?: boolean; // test setting: every character is unlocked, and nothing is saved
+  character?: CharacterId; // test setting: start a run with this character, skipping the select screen
+  storage?: KeyValueStorage | null; // where unlocks are saved (default: the browser's localStorage)
 }
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -103,13 +110,26 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
   let message = '';
   let busy = false;
 
+  // Characters: which are unlocked, whether progress can be kept, and the select screen. The
+  // select screen only exists for a run; the single-battle test modes start straight in.
+  const storage = options.storage === undefined ? browserStorage() : options.storage;
+  const loaded = options.unlockAll
+    ? { unlocked: CHARACTERS.map((c) => c.id), canSave: true }
+    : loadUnlocked(storage);
+  let unlocked: CharacterId[] = loaded.unlocked;
+  let canSave = loaded.canSave;
+  let characterId: CharacterId = options.character ?? DEFAULT_CHARACTER;
+  let onSelectScreen = mode.kind === 'run' && options.character === undefined;
+  let justUnlocked: CharacterId[] = []; // characters unlocked by the encounter just won, for its screen
+
   /** Starts a new run, or a new single battle in a test mode. */
   const begin = () => {
     if (mode.kind === 'run') {
-      run = createRun(rng);
+      run = createRun(rng, characterId);
+      justUnlocked = [];
       if (options.fullPaint) run = { ...run, battle: { ...run.battle, paint: { ...FULL_PAINT } } };
       state = run.battle;
-      message = 'Stage 1, battle 1. Swipe a bottle to match three. White bottles hurt enemies; paint can be spent or mixed.';
+      message = `${characterById(characterId).name}: stage 1, battle 1. Swipe a bottle to match three. White bottles hurt enemies; paint can be spent or mixed.`;
     } else {
       const stage = STAGES[mode.stage - 1]!;
       const ability = options.ability ?? drawBossAbilities(rng, 1)[0];
@@ -122,7 +142,14 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
   /** Records a new battle state, and in a run lets the run notice a win or loss. */
   const setBattle = (next: BattleState) => {
     state = next;
-    if (run) run = updateBattle(run, next, rng);
+    if (!run) return;
+    run = updateBattle(run, next, rng);
+    // A boss defeated or a run won may unlock characters; each is announced once and saved.
+    const result = unlock(unlocked, goalsReached(run));
+    if (result.newly.length === 0) return;
+    unlocked = result.unlocked;
+    justUnlocked = result.newly;
+    if (!options.unlockAll) canSave = saveUnlocked(storage, unlocked);
   };
 
   // Options that stay the same for every frame of a battle, including the replay frames.
@@ -130,24 +157,35 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
     progress: run ? { stage: run.stage, encounter: run.encounter, round: run.round, stageSizes: STAGES.map((st) => st.battles.length + 1) } : undefined,
     bossFight: run ? run.encounter === 'boss' : mode.kind === 'boss',
     testControls: options.testing || mode.kind !== 'run',
-    restartLabel: run ? 'New run' : 'Restart',
+    restartLabel: run ? 'Rerun' : 'Restart',
+    menuButton: run !== null,
   });
+
+  /** Lines announcing characters unlocked by what was just won, and a warning if they cannot be kept. */
+  const unlockLines = (): string[] => {
+    if (justUnlocked.length === 0) return [];
+    const names = justUnlocked.map((id) => characterById(id).name).join(' and ');
+    const lines = [`New character unlocked: ${names}!`];
+    if (!canSave) lines.push('Progress cannot be saved in this browser, so this will not be kept.');
+    return lines;
+  };
+
+  // The end-of-run buttons: Rerun starts again with the same character, Menu goes back to select.
+  const endButtons: NonNullable<NonNullable<ViewOptions['overlay']>['buttons']> = [
+    { label: 'Rerun', action: 'restart' }, { label: 'Menu', action: 'menu' },
+  ];
 
   /** The screen over the game between battles, at the end of a run, or after a test battle. */
   const overlay = (): ViewOptions['overlay'] => {
     if (!run) {
       if (state.status === 'playing') return undefined;
-      return { title: state.status === 'won' ? 'You won!' : 'You lost', lines: [], button: { label: 'Play again', action: 'restart' } };
+      return { title: state.status === 'won' ? 'You won!' : 'You lost', lines: [], buttons: [{ label: 'Play again', action: 'restart' }] };
     }
     if (run.phase === 'won') {
-      return { title: 'Run won!', lines: ['You beat all three bosses.'], button: { label: 'New run', action: 'restart' } };
+      return { title: 'Run won!', lines: ['You beat all three bosses.', ...unlockLines()], buttons: endButtons };
     }
     if (run.phase === 'lost') {
-      return {
-        title: 'Run lost',
-        lines: [`You fell in ${encounterName(run)}.`],
-        button: { label: 'New run', action: 'restart' },
-      };
+      return { title: 'Run lost', lines: [`You fell in ${encounterName(run)}.`], buttons: endButtons };
     }
     if (run.phase === 'cleared' || run.phase === 'choosingWeapon') {
       const afterBoss = run.encounter === 'boss';
@@ -168,17 +206,22 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
           label: weapon === state.weapon ? `Keep: ${WEAPON_INFO[weapon].label}` : WEAPON_INFO[weapon].label,
           description: WEAPON_INFO[weapon].description,
         }));
-        return { title, lines: [...lines, 'Choose your next weapon:'], choices };
+        return { title, lines: [...unlockLines(), ...lines, 'Choose your next weapon:'], choices };
       }
-      return { title, lines, button: { label: 'Continue', action: 'continue' } };
+      return { title, lines, buttons: [{ label: 'Continue', action: 'continue' }] };
     }
     return undefined;
   };
 
-  const draw = (extra: Partial<ViewOptions> = {}) =>
+  const draw = (extra: Partial<ViewOptions> = {}) => {
+    if (onSelectScreen) {
+      renderSelect(root, { unlocked, canSave });
+      return;
+    }
     renderBattle(root, state, {
       message, messageIsLock: state.heldMix !== null, ...baseView(), overlay: overlay(), ...extra,
     });
+  };
 
   /** Applies a command that is not a turn (spend, mix, use mix). */
   const applyPaint = (result: TurnResult, rejectedMessage: string) => {
@@ -266,6 +309,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
     continueRun() {
       if (!run || run.phase !== 'cleared') return;
       const hpBefore = state.playerHp;
+      justUnlocked = [];
       run = continueRun(run, rng);
       state = run.battle;
       const healed = state.playerHp - hpBefore;
@@ -278,6 +322,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
       if (!run || run.phase !== 'choosingWeapon') return;
       const hpBefore = state.playerHp;
       const previous = state.weapon;
+      justUnlocked = [];
       run = chooseWeapon(run, weapon, rng);
       state = run.battle;
       const healed = state.playerHp - hpBefore;
@@ -286,12 +331,31 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
       draw();
     },
 
+    // These three ignore clicks while a move is still being replayed, so the replay cannot draw
+    // the old battle over the new screen.
     restart() {
+      if (busy) return;
+      begin();
+      draw();
+    },
+
+    menu() {
+      if (busy) return;
+      run = null;
+      justUnlocked = [];
+      onSelectScreen = true;
+      draw();
+    },
+
+    chooseCharacter(id: CharacterId) {
+      if (busy || !unlocked.includes(id)) return;
+      characterId = id;
+      onSelectScreen = false;
       begin();
       draw();
     },
   });
 
-  begin();
+  if (!onSelectScreen) begin();
   draw();
 }

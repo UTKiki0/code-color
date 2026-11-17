@@ -201,3 +201,15 @@ button { cursor: pointer; font-weight: 700; }
 .choice { display: grid; gap: 2px; text-align: left; padding: 10px 12px; min-height: 64px; }
 .choice strong { font-size: 1rem; }
 .choice span { font-weight: 400; font-size: .85rem; }
+
+/* ---- Character select, and the end-of-run buttons ---- */
+.select-heading { margin: 4px 0 0; font-size: 1.3rem; }
+.characters { display: grid; gap: 10px; }
+.character { display: grid; gap: 3px; text-align: left; padding: 12px 14px; min-height: 84px; }
+.character strong { font-size: 1.1rem; }
+.character span { font-weight: 400; font-size: .9rem; }
+.character.locked { background: #e7e0d4; border-style: dashed; cursor: not-allowed; }
+.character.locked strong { color: var(--muted); }
+.character .unlock-hint { font-weight: 700; color: var(--ink); } /* the accent color is too faint on the locked card (3.95:1) */
+.select-note { margin: 0; padding: 8px 10px; border: 2px solid var(--ink); border-radius: 10px; background: #fff7ed; font-size: .9rem; }
+.overlay-buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }

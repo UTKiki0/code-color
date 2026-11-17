@@ -1,4 +1,5 @@
 import './styles.css';
+import { CHARACTERS, type CharacterId } from '../game/characters';
 import { BOSS_ABILITIES, type BossAbility } from '../game/rules';
 import { startSession, type SessionMode } from './session';
 
@@ -9,6 +10,8 @@ import { startSession, type SessionMode } from './session';
 //   ?round=2    with ?battle, play that regular battle of the stage (default 1)
 //   ?boss       a single boss battle instead of a run (?boss=3 for stage 3's boss)
 //   ?ability=heal  with ?boss, give that boss this ability (paintThief, inkBlot, shield, heal)
+//   ?unlockAll  every character is unlocked, and nothing is saved
+//   ?character=stroke  start a run with that character (splat, stroke, or roll), skipping the select screen
 //   ?testing    show the weapon dropdown during a run
 const params = new URLSearchParams(window.location.search);
 
@@ -26,5 +29,10 @@ const mode: SessionMode = params.has('boss')
 const abilityParam = params.get('ability') as BossAbility | null;
 const ability = abilityParam && BOSS_ABILITIES.includes(abilityParam) ? abilityParam : undefined;
 
+const characterParam = params.get('character') as CharacterId | null;
+const character = CHARACTERS.some((c) => c.id === characterParam) ? characterParam ?? undefined : undefined;
+
 const app = document.getElementById('app');
-if (app) startSession(app, seed, { ability, fullPaint: params.has('fullPaint'), mode, testing: params.has('testing') });
+if (app) startSession(app, seed, {
+  ability, character, unlockAll: params.has('unlockAll'), fullPaint: params.has('fullPaint'), mode, testing: params.has('testing'),
+});

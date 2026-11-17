@@ -1,4 +1,5 @@
 import type { Cell } from '../game/board';
+import type { CharacterId } from '../game/characters';
 import type { PaintColor, Weapon } from '../game/rules';
 import { shape } from './view';
 
@@ -14,7 +15,9 @@ export interface Commands {
   setWeapon(weapon: Weapon): void;
   continueRun(): void;
   chooseWeapon(weapon: Weapon): void;
-  restart(): void;
+  restart(): void; // a new run (or test battle) with the same character
+  menu(): void; // back to the character select screen
+  chooseCharacter(id: CharacterId): void;
 }
 
 type Gesture =
@@ -122,7 +125,11 @@ export function attachInput(root: HTMLElement, commands: Commands): void {
 
   root.addEventListener('click', (e) => {
     const target = e.target as HTMLElement;
-    if (target.closest('[data-restart]')) commands.restart();
+    const character = target.closest<HTMLElement>('[data-character]');
+    if (character) {
+      if (character.getAttribute('aria-disabled') !== 'true') commands.chooseCharacter(character.dataset.character as CharacterId);
+    } else if (target.closest('[data-restart]')) commands.restart();
+    else if (target.closest('[data-menu]')) commands.menu();
     else if (target.closest('[data-continue]')) commands.continueRun();
     else {
       const choice = target.closest<HTMLElement>('[data-choose]');
