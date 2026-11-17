@@ -1,4 +1,5 @@
 import { createBattle, type BattleState } from './battle';
+import { characterById, DEFAULT_CHARACTER, type CharacterId } from './characters';
 import type { Rng } from './rng';
 import { BOSS_ABILITIES, POST_BOSS_HEAL, PLAYER_START_HP, STAGES, WEAPONS, WEAPON_OFFER_SIZE, type BossAbility, type Weapon } from './rules';
 
@@ -22,6 +23,7 @@ export interface RunState {
   phase: RunPhase;
   weaponOffer: Weapon[] | null; // the weapons to choose from, only while choosingWeapon
   bossAbilities: BossAbility[]; // each stage's boss ability, fixed for the run
+  character: CharacterId; // who is playing: sets the starting weapon and paint
 }
 
 const enemiesFor = (stage: number, encounter: Encounter, round: number, bossAbilities: BossAbility[]) =>
@@ -44,11 +46,17 @@ export function drawBossAbilities(rng: Rng, count: number = STAGES.length): Boss
   return drawn;
 }
 
-/** A new run, at the first battle of the first stage. */
-export function createRun(rng: Rng): RunState {
-  const battle = createBattle(rng, { enemies: enemiesFor(0, 'battle', 0, []) });
+/** A new run for a character, at the first battle of the first stage, with their weapon and paint. */
+export function createRun(rng: Rng, characterId: CharacterId = DEFAULT_CHARACTER): RunState {
+  const character = characterById(characterId);
+  const battle = createBattle(rng, {
+    enemies: enemiesFor(0, 'battle', 0, []), weapon: character.weapon, paint: character.startPaint,
+  });
   // Drawn after the first board so the abilities do not change which board a seed gives.
-  return { stage: 0, encounter: 'battle', round: 0, battle, phase: 'fighting', weaponOffer: null, bossAbilities: drawBossAbilities(rng) };
+  return {
+    stage: 0, encounter: 'battle', round: 0, battle, phase: 'fighting', weaponOffer: null,
+    bossAbilities: drawBossAbilities(rng), character: characterId,
+  };
 }
 
 /** Draws distinct weapons at random from all weapons for the player to choose between. */
@@ -92,7 +100,7 @@ export function continueRun(run: RunState, rng: Rng): RunState {
     paint: run.battle.paint,
     weapon: run.battle.weapon,
   });
-  return { ...next, battle, phase: 'fighting', weaponOffer: null, bossAbilities: run.bossAbilities };
+  return { ...next, battle, phase: 'fighting', weaponOffer: null, bossAbilities: run.bossAbilities, character: run.character };
 }
 
 /**
