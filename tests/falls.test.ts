@@ -49,14 +49,18 @@ describe('computeFalls agrees with the game', () => {
       for (const event of stepEvents) {
         if (event.type !== 'bottlesCleared') continue;
         steps++;
-        const falls = computeFalls(event.cells);
+        // An item left by the match stays put and falls with the other bottles; only the rest vanish.
+        const vacated = event.cells.filter((c) => !event.created.some((i) => i.row === c.row && i.col === c.col));
+        const falls = computeFalls(vacated);
+        const placed = before.map((r) => [...r]);
+        for (const i of event.created) placed[i.row]![i.col] = i.item;
         for (let row = 0; row < BOARD_SIZE; row++) {
           for (let col = 0; col < BOARD_SIZE; col++) {
             const rows = falls.get(`${row},${col}`);
             if (rows === undefined) {
-              expect(event.boardAfter[row]![col]).toBe(before[row]![col]);
+              expect(event.boardAfter[row]![col]).toBe(placed[row]![col]);
             } else if (row - rows >= 0) {
-              expect(event.boardAfter[row]![col]).toBe(before[row - rows]![col]);
+              expect(event.boardAfter[row]![col]).toBe(placed[row - rows]![col]);
             } // otherwise it is a new bottle, which could be anything
           }
         }

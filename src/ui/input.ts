@@ -7,6 +7,7 @@ import { shape } from './view';
 export interface Commands {
   busy(): boolean;
   swap(a: Cell, b: Cell): void;
+  useItem(cell: Cell): void; // a tap on a board item
   spend(color: PaintColor, enemyId: number): void;
   mix(a: PaintColor, b: PaintColor): void;
   useMix(target: { enemyId: number } | { color: PaintColor } | { player: true }): void;
@@ -17,7 +18,7 @@ export interface Commands {
 }
 
 type Gesture =
-  | { kind: 'swipe'; pointerId: number; x: number; y: number; cell: Cell; size: number; done: boolean }
+  | { kind: 'swipe'; pointerId: number; x: number; y: number; cell: Cell; size: number; done: boolean; isItem: boolean }
   | { kind: 'paint'; pointerId: number; color: PaintColor; ghost: HTMLElement }
   | { kind: 'held'; pointerId: number; ghost: HTMLElement };
 
@@ -51,6 +52,7 @@ export function attachInput(root: HTMLElement, commands: Commands): void {
       const rect = cellEl.getBoundingClientRect();
       gesture = {
         kind: 'swipe', pointerId: e.pointerId, x: e.clientX, y: e.clientY, done: false, size: rect.width,
+        isItem: cellEl.dataset.item !== undefined,
         cell: { row: Number(cellEl.dataset.row), col: Number(cellEl.dataset.col) },
       };
       root.setPointerCapture(e.pointerId);
@@ -94,7 +96,11 @@ export function attachInput(root: HTMLElement, commands: Commands): void {
     if (!gesture || gesture.pointerId !== e.pointerId) return;
     const g = gesture;
     end();
-    if (g.kind === 'swipe') return;
+    // A press on an item that never turned into a swipe is a tap: use the item.
+    if (g.kind === 'swipe') {
+      if (g.isItem && !g.done) commands.useItem(g.cell);
+      return;
+    }
     // The ghost ignores pointer events, so this finds the element under the finger.
     const under = document.elementFromPoint(e.clientX, e.clientY);
     const enemyEl = under?.closest<HTMLElement>('[data-enemy-id]');

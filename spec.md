@@ -52,6 +52,16 @@ The first playable milestone remains one battle demonstrating bottle matching, c
 - Each red, yellow, or blue bottle cleared adds 1 paint of that color to its storage bottle, up to a maximum of 9. Storage bottles sit above the board.
 - Only white bottles deal damage on a match.
 
+**Board items** (Developer decision, 2026-11-17; the rules below were built and tested in checkpoint 10, step 3a, and the screen in step 3b)
+- A match that is a group of touching bottles of one type leaves one item on the board. Priority: a run of 5 or more makes a color item, a T or L (a row of 3 or more and a column of 3 or more sharing a bottle) makes a bomb, and a run of 4 makes a line item. The match's other bottles clear as usual, and all of its bottles still count for paint and damage.
+- Line item: clears its whole row (made by 4 across) or its whole column (made by 4 down). Bomb: clears the 5x5 area centered on it (less at an edge or corner). Color item: clears every bottle of the color it was made from (red, yellow, blue, or white), and itself.
+- The item appears at the bottle the player dragged if it is in the match, else at the other swapped bottle, else at the first bottle of the match (for cascades). Matches of empties make no item. Cascade steps make items too (Agent's choice, so every step follows one rule; not yet reviewed).
+- The player taps an item to use it. This is a turn (Developer decision): the cleared bottles give paint and white damage, then bottles fall and cascade, then burn, countdowns, and attacks resolve as for a swipe. It cannot be used while a mix is held. Tapping a bottle that is not an item does nothing.
+- Cleared white bottles deal damage by the usual rule, once per group of touching whites: 1 damage plus 1 for each white beyond the third, plus the weapon bonus, to one random enemy (every enemy for the roller). Cleared paint bottles give paint.
+- An item caught in another item's clear goes off too, so items can chain. Items never match, even three side by side. An item can be swiped like a bottle, and the swap must still make a match.
+- A board with an item always has a move, so the free shuffle happens only with no matching swap and no item. A boss's ink blot never takes an item.
+- Display: each item has its own shape and a text mark as well as color: a dark rounded square with an arrow (row or column line), a dark circle with a star burst (bomb), and a star in the paint's color marked ALL (color item). A new item pops in. Tapping an item replays like a move: the cleared bottles pop, then the board falls and cascades. The message line says "Made a Bomb item" and "Used the Row line". The cell's screen-reader label names the item and what it does.
+
 **Spending paint on an enemy** (drag a storage bottle onto an enemy; costs 3 paint)
 - Red: burn of 1 damage per turn for 3 turns.
 - Yellow: 3 damage immediately (Developer change, 2026-11-16; it was 2).

@@ -4,10 +4,32 @@
 export const BOARD_SIZE = 7;
 export const MIN_MATCH = 3;
 
-export type Bottle = 'red' | 'yellow' | 'blue' | 'white' | 'empty';
+// Bottles that spawn on the board.
+export type BaseBottle = 'red' | 'yellow' | 'blue' | 'white' | 'empty';
+
+// Items (Developer decision, 2026-11-17): bigger matches leave an item on the board that the
+// player taps to clear part of it. They never spawn and never match. The color items clear every
+// bottle of one color, so there is one per matchable color.
+export type ItemBottle = 'lineRow' | 'lineCol' | 'bomb' | 'colorRed' | 'colorYellow' | 'colorBlue' | 'colorWhite';
+export type Bottle = BaseBottle | ItemBottle;
+export const ITEM_BOTTLES: ItemBottle[] = ['lineRow', 'lineCol', 'bomb', 'colorRed', 'colorYellow', 'colorBlue', 'colorWhite'];
+export const isItem = (bottle: Bottle): bottle is ItemBottle => (ITEM_BOTTLES as Bottle[]).includes(bottle);
+
+// A run of 4 makes a line item (it clears its row or column), a T or L makes a bomb (it clears
+// the area within BOMB_RADIUS of it, so 5x5), and a run of 5 or more makes a color item.
+export const LINE_ITEM_RUN = 4;
+export const COLOR_ITEM_RUN = 5;
+export const BOMB_RADIUS = 2;
+// Which color item clears which bottle. Empties make no item.
+export const COLOR_ITEMS: Partial<Record<Bottle, ItemBottle>> = {
+  red: 'colorRed', yellow: 'colorYellow', blue: 'colorBlue', white: 'colorWhite',
+};
+export const COLOR_ITEM_CLEARS: Partial<Record<ItemBottle, Bottle>> = {
+  colorRed: 'red', colorYellow: 'yellow', colorBlue: 'blue', colorWhite: 'white',
+};
 
 // Spawn weights for new bottles. They are relative, so they need not sum to 1.
-export const SPAWN_WEIGHTS: Record<Bottle, number> = {
+export const SPAWN_WEIGHTS: Record<BaseBottle, number> = {
   red: 0.18,
   yellow: 0.18,
   blue: 0.18,

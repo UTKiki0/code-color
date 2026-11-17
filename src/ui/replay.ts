@@ -76,23 +76,42 @@ function showStepFx(step: Step): void {
   }
 }
 
-export async function playMove(
+/** Replays a swipe: the swapped board first, then each cascade step. */
+export function playMove(
   root: HTMLElement, before: BattleState, a: Cell, b: Cell, result: TurnResult, message: string,
   base: Partial<ViewOptions> = {}, // run display options, repeated on every frame so they do not flicker
 ): Promise<void> {
+  return replaySteps(root, before, swapped(before.board, a, b), result, message, base);
+}
+
+/** Replays a tapped item: the board as it is, then the item's clear and each cascade step. */
+export function playItem(
+  root: HTMLElement, before: BattleState, result: TurnResult, message: string, base: Partial<ViewOptions> = {},
+): Promise<void> {
+  return replaySteps(root, before, before.board, result, message, base);
+}
+
+async function replaySteps(
+  root: HTMLElement, before: BattleState, start: Board, result: TurnResult, message: string,
+  base: Partial<ViewOptions>,
+): Promise<void> {
   // A copy of the state that is updated as steps play; the real state is applied by the caller.
   const view: BattleState = { ...before, paint: { ...before.paint }, enemies: before.enemies.map((e) => ({ ...e })) };
-  let board = swapped(before.board, a, b);
+  let board = start;
 
   for (const step of groupSteps(result.events)) {
     const stepMessage = step.clear.step > 1 ? `Combo x${step.clear.step}!` : message;
     const speed = stepSpeed(step.clear.step); // later steps play faster
+    // An item the match leaves stays on the board (and falls with it); only the rest pops away.
+    const vacated = step.clear.cells.filter((c) => !step.clear.created.some((i) => i.row === c.row && i.col === c.col));
+    const shown = board.map((r) => [...r]);
+    for (const i of step.clear.created) shown[i.row]![i.col] = i.item;
     applyToView(view, step.derived);
-    renderBattle(root, { ...view, board }, { ...base, message: stepMessage, popCells: step.clear.cells, speed });
+    renderBattle(root, { ...view, board: shown }, { ...base, message: stepMessage, popCells: vacated, madeCells: step.clear.created, speed });
     showStepFx(step);
     await sleep(POP_MS * speed);
 
-    const falls = computeFalls(step.clear.cells);
+    const falls = computeFalls(vacated);
     board = step.clear.boardAfter;
     renderBattle(root, { ...view, board }, { ...base, message: stepMessage, falls, speed });
     await sleep((FALL_BASE_MS + Math.max(0, ...falls.values()) * FALL_PER_ROW_MS) * speed);

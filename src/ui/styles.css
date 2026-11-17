@@ -113,6 +113,27 @@ button { cursor: pointer; font-weight: 700; }
 .bottle-empty .shape { background: transparent; border: 2px dashed #94a3b8; border-radius: 50%; opacity: .7; }
 .bottle-green .shape, .bottle-purple .shape, .bottle-orange .shape { clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%); }
 
+/* ---- Items: tap to use. Each has its own shape and a text mark, and the color items show their color ---- */
+.cell[data-item] { cursor: pointer; }
+.cell[data-item] .shape { display: grid; place-items: center; position: relative; }
+.cell[data-item] .shape::after { content: var(--glyph); font-weight: 900; font-size: 1.15rem; line-height: 1; color: #fff; }
+.bottle-lineRow .shape, .bottle-lineCol .shape { background: var(--ink); border-radius: 28%; }
+.bottle-bomb .shape { background: var(--ink); border-radius: 50%; box-shadow: inset 0 0 0 3px var(--accent); }
+.bottle-colorRed, .bottle-colorYellow, .bottle-colorBlue, .bottle-colorWhite { --glyph-color: #fff; }
+.bottle-colorRed { --c: var(--red); }
+.bottle-colorYellow { --c: var(--yellow); --glyph-color: var(--ink); }
+.bottle-colorBlue { --c: var(--blue); }
+.bottle-colorWhite { --c: var(--white); --glyph-color: var(--ink); }
+.bottle-colorRed .shape, .bottle-colorYellow .shape, .bottle-colorBlue .shape, .bottle-colorWhite .shape {
+  clip-path: polygon(50% 0, 62% 35%, 98% 38%, 70% 60%, 80% 95%, 50% 74%, 20% 95%, 30% 60%, 2% 38%, 38% 35%);
+  width: 96%; height: 96%;
+}
+.bottle-colorRed .shape::after, .bottle-colorYellow .shape::after, .bottle-colorBlue .shape::after, .bottle-colorWhite .shape::after {
+  color: var(--glyph-color); font-size: .62rem; margin-top: 8%;
+}
+.cell.made .shape { animation: made .5s ease-out; }
+@keyframes made { 0% { transform: scale(.3); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+
 /* ---- Dragging ---- */
 #app.dragging [data-enemy-id], #app.dragging [data-paint] { outline: 3px dashed var(--accent); outline-offset: 2px; }
 .ghost { position: fixed; width: 56px; height: 56px; transform: translate(-50%, -50%); pointer-events: none; z-index: 20; opacity: .9; }

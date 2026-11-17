@@ -1,4 +1,4 @@
-import { createBattle, takeTurn, type BattleEvent, type BattleState, type TurnResult } from '../game/battle';
+import { createBattle, takeTurn, useItem as useItemTurn, type BattleEvent, type BattleState, type TurnResult } from '../game/battle';
 import type { Cell } from '../game/board';
 import { mix, spend, useMix } from '../game/paint';
 import { createRng, type Rng } from '../game/rng';
@@ -6,7 +6,8 @@ import { chooseWeapon, continueRun, createRun, drawBossAbilities, updateBattle, 
 import { PAINT_MAX, PLAYER_START_HP, POST_BOSS_HEAL, SPEND_COST, STAGES, type BossAbility, type PaintColor } from '../game/rules';
 import { floatOverEnemy, floatOverPlayer } from './fx';
 import { attachInput } from './input';
-import { playMove } from './replay';
+import { ITEM_INFO } from './items';
+import { playItem, playMove } from './replay';
 import { WEAPON_INFO } from './weapons';
 import { renderBattle, type ViewOptions } from './view';
 
@@ -31,10 +32,13 @@ const enemyNameFor = (bossFight: boolean) => (id: number) => (bossFight ? 'Boss'
 function describe(events: BattleEvent[], bossFight: boolean): string {
   const enemyName = enemyNameFor(bossFight);
   const parts: string[] = [];
-  const steps = events.filter((e) => e.type === 'bottlesCleared').length;
+  // A tapped item's own clear is step 1, so combos are the steps after it.
+  const steps = events.filter((e) => e.type === 'bottlesCleared').length - (events.some((e) => e.type === 'itemUsed') ? 1 : 0);
   if (steps > 1) parts.push(`Combo x${steps}!`);
   for (const e of events) {
-    if (e.type === 'paintGained' && e.amount > 0) parts.push(`+${e.amount} ${e.color}`);
+    if (e.type === 'itemUsed') parts.push(`Used the ${ITEM_INFO[e.item].label}`);
+    else if (e.type === 'bottlesCleared') for (const made of e.created) parts.push(`Made a ${ITEM_INFO[made.item].label} item`);
+    else if (e.type === 'paintGained' && e.amount > 0) parts.push(`+${e.amount} ${e.color}`);
     else if (e.type === 'paintSpent') parts.push(`Spent ${e.amount} ${e.color}`);
     else if (e.type === 'mixed') parts.push(`Made ${e.mix} - use it before swiping`);
     else if (e.type === 'rainbow') parts.push('Rainbow!');
@@ -202,6 +206,24 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
     floatPlayerHeals(result.events);
   };
 
+  /** Plays a turn that changed the board (a swipe or a tapped item), then shows its final state. */
+  const playTurn = async (result: TurnResult, replay: () => Promise<void>) => {
+    busy = true;
+    if (!reducedMotion()) await replay();
+    setBattle(result.state);
+    message = describe(result.events, baseView().bossFight === true);
+    draw(attackEffects(result.events));
+    floatHeals(result.events);
+    floatShield(result.events);
+    floatThefts(result.events);
+    if (!reducedMotion()) {
+      const hits = result.events.filter((e) => e.type === 'enemyAttacked');
+      const total = hits.reduce((sum, e) => sum + (e.type === 'enemyAttacked' ? e.damage : 0), 0);
+      if (total > 0) floatOverPlayer(`-${total}`, 'damage');
+    }
+    busy = false;
+  };
+
   attachInput(root, {
     busy: () => busy,
 
@@ -214,20 +236,19 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
         draw({ shake: [a, b] });
         return;
       }
-      busy = true;
-      if (!reducedMotion()) await playMove(root, state, a, b, result, message, baseView());
-      setBattle(result.state);
-      message = describe(result.events, baseView().bossFight === true);
-      draw(attackEffects(result.events));
-      floatHeals(result.events);
-      floatShield(result.events);
-      floatThefts(result.events);
-      if (!reducedMotion()) {
-        const hits = result.events.filter((e) => e.type === 'enemyAttacked');
-        const total = hits.reduce((sum, e) => sum + (e.type === 'enemyAttacked' ? e.damage : 0), 0);
-        if (total > 0) floatOverPlayer(`-${total}`, 'damage');
+      await playTurn(result, () => playMove(root, state, a, b, result, message, baseView()));
+    },
+
+    async useItem(cell: Cell) {
+      const result = useItemTurn(state, cell, rng);
+      if (!result.ok) {
+        message = state.heldMix ? 'Use your mix before tapping an item.'
+          : state.status !== 'playing' ? 'The battle is over.'
+          : 'That is not an item.';
+        draw();
+        return;
       }
-      busy = false;
+      await playTurn(result, () => playItem(root, state, result, message, baseView()));
     },
 
     spend(color: PaintColor, enemyId: number) {

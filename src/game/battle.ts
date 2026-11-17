@@ -1,4 +1,4 @@
-import { blotBoard, createBoard, swap, type Board, type BoardEvent, type Cell } from './board';
+import { blotBoard, connectedGroups, createBoard, swap, useItem as useBoardItem, type Board, type BoardEvent, type Cell } from './board';
 import { isShielded } from './effects';
 import type { Rng } from './rng';
 import {
@@ -102,31 +102,9 @@ export function createBattle(rng: Rng, setup: BattleSetup = {}): BattleState {
   };
 }
 
-/** Splits cleared cells of one bottle type into matches: groups of touching bottles. */
-function groupMatches(cells: (Cell & { bottle: Bottle })[], bottle: Bottle): Cell[][] {
-  const remaining = new Map(
-    cells.filter((c) => c.bottle === bottle).map((c) => [`${c.row},${c.col}`, c as Cell]),
-  );
-  const groups: Cell[][] = [];
-  while (remaining.size > 0) {
-    const [firstKey, first] = remaining.entries().next().value as [string, Cell];
-    remaining.delete(firstKey);
-    const group = [first];
-    for (let i = 0; i < group.length; i++) {
-      const { row, col } = group[i]!;
-      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-        const key = `${row + dr},${col + dc}`;
-        const neighbor = remaining.get(key);
-        if (neighbor) {
-          remaining.delete(key);
-          group.push(neighbor);
-        }
-      }
-    }
-    groups.push(group);
-  }
-  return groups;
-}
+/** The matches of one bottle type among cleared cells: groups of touching bottles. */
+const groupMatches = (cells: (Cell & { bottle: Bottle })[], bottle: Bottle): Cell[][] =>
+  connectedGroups(cells.filter((c) => c.bottle === bottle));
 
 /** Removes enemies with no HP left, reporting each death, and returns the survivors. */
 export function removeDeadEnemies(enemies: Enemy[], events: BattleEvent[]): Enemy[] {
@@ -191,11 +169,19 @@ function useAbility(boss: Enemy, target: AbilityTarget, rng: Rng, events: Battle
  * spec.md. A rejected swap, or a finished battle, changes nothing.
  */
 export function takeTurn(state: BattleState, a: Cell, b: Cell, rng: Rng): TurnResult {
-  const rejected: TurnResult = { ok: false, state, events: [] };
-  if (state.status !== 'playing' || state.heldMix) return rejected;
+  if (state.status !== 'playing' || state.heldMix) return { ok: false, state, events: [] };
+  return resolveMove(state, swap(state.board, a, b, rng), rng);
+}
 
-  const moved = swap(state.board, a, b, rng);
-  if (!moved.ok) return rejected;
+/** Tapping an item is a turn too: it clears part of the board, then everything resolves as for a swap. */
+export function useItem(state: BattleState, at: Cell, rng: Rng): TurnResult {
+  if (state.status !== 'playing' || state.heldMix) return { ok: false, state, events: [] };
+  return resolveMove(state, useBoardItem(state.board, at, rng), rng);
+}
+
+/** The shared turn rules (see spec.md) once the board has changed. A rejected board change is a rejected move. */
+function resolveMove(state: BattleState, moved: ReturnType<typeof swap>, rng: Rng): TurnResult {
+  if (!moved.ok) return { ok: false, state, events: [] };
 
   const paint = { ...state.paint };
   let enemies = state.enemies.map((e) => ({ ...e }));

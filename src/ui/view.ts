@@ -1,8 +1,9 @@
 import type { BattleState, Enemy } from '../game/battle';
 import type { Cell } from '../game/board';
 import { GAME_TITLE } from '../game/title';
+import { ITEM_INFO } from './items';
 import { WEAPON_INFO, WEAPON_LIST } from './weapons';
-import { PAINT_COLORS, PAINT_MAX, PLAYER_START_HP, type Bottle, type BossAbility, type MixColor, type PaintColor, type Weapon } from '../game/rules';
+import { PAINT_COLORS, PAINT_MAX, PLAYER_START_HP, isItem, type Bottle, type BossAbility, type MixColor, type PaintColor, type Weapon } from '../game/rules';
 
 // Drawing only: this file turns a BattleState into DOM and decides nothing about the rules.
 
@@ -13,6 +14,7 @@ export interface ViewOptions {
   falls?: Map<string, number>; // rows each bottle falls, keyed by its new "row,col"
   shake?: Cell[]; // cells to shake (rejected swap)
   blotCells?: Cell[]; // bottles a boss just turned into empties
+  madeCells?: Cell[]; // items just made by a match
   speed?: number; // 1 = normal; smaller makes this frame's animations shorter
   attackedEnemies?: number[];
   playerHit?: boolean;
@@ -92,11 +94,13 @@ function board(state: BattleState, view: ViewOptions): HTMLElement {
   state.board.forEach((rowBottles, row) =>
     rowBottles.forEach((bottle, col) => {
       const fall = view.falls?.get(`${row},${col}`);
+      const item = isItem(bottle) ? ITEM_INFO[bottle] : null;
       const cell = el(
         'div',
-        `cell bottle-${bottle}${has(view.popCells, row, col) ? ' pop' : ''}${has(view.shake, row, col) ? ' shake' : ''}${has(view.blotCells, row, col) ? ' blot' : ''}${fall ? ' fall' : ''}`,
-        { 'data-row': String(row), 'data-col': String(col), role: 'gridcell', 'aria-label': `${bottle} bottle, row ${row + 1}, column ${col + 1}` },
+        `cell bottle-${bottle}${has(view.madeCells, row, col) ? ' made' : ''}${has(view.popCells, row, col) ? ' pop' : ''}${has(view.shake, row, col) ? ' shake' : ''}${has(view.blotCells, row, col) ? ' blot' : ''}${fall ? ' fall' : ''}`,
+        { 'data-row': String(row), 'data-col': String(col), role: 'gridcell', 'aria-label': item ? `${item.label} item, ${item.description}. Tap to use. Row ${row + 1}, column ${col + 1}` : `${bottle} bottle, row ${row + 1}, column ${col + 1}` },
       );
+      if (item) { cell.dataset.item = bottle; cell.style.setProperty('--glyph', `'${item.glyph}'`); }
       if (fall) cell.style.setProperty('--fall', String(fall));
       cell.append(el('div', 'shape'));
       root.append(cell);
