@@ -8,11 +8,11 @@
   --line: #d6c9b4;
   --accent: #c2410c;
 
-  /* Bottle colors. White text on these meets 4.5:1; yellow and white use dark text. */
+  /* Bottle colors. White text on these meets 4.5:1; yellow uses dark text. */
   --red: #c62828;
   --yellow: #f5c518;
   --blue: #1d4ed8;
-  --white: #f8fafc;
+  --grey: #a3a3a3;
   --green: #1f7a4d;
   --purple: #7e3fb8;
   --orange: #b45309;
@@ -77,7 +77,7 @@ button { cursor: pointer; font-weight: 700; }
 .store.full { border-color: var(--accent); box-shadow: 0 0 0 3px #fed7aa; }
 .held { border-color: var(--accent); background: #fff7ed; cursor: grab; }
 .held-empty { border-style: dashed; color: var(--muted); font-weight: 600; }
-.store .shape, .held .shape { width: 36px; height: 36px; }
+.store .shape, .held .shape { width: 46px; height: 46px; }
 .meter { width: 80%; height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; }
 .meter > i { display: block; height: 100%; background: var(--ink); }
 
@@ -97,40 +97,40 @@ button { cursor: pointer; font-weight: 700; }
 .cell.shake { animation: shake .35s; }
 .cell.blot { animation: blot .8s ease-out; }
 
-/* ---- Bottle shapes: each type has its own shape as well as its color ---- */
-.shape { width: 82%; height: 82%; background: var(--c); }
-.bottle-red { --c: var(--red); }
-.bottle-yellow { --c: var(--yellow); }
-.bottle-blue { --c: var(--blue); }
-.bottle-white { --c: var(--white); }
+/* ---- Bottle pictures: one sprite sheet (art/Paint bottle.png), 4 x 4 tiles of 32 pixels.
+   Each type picks its tile with --col and --row. The sheet is scaled up with hard pixel edges. ---- */
+.shape {
+  width: 100%; height: 100%;
+  background: url("../../art/Paint bottle.png") no-repeat;
+  background-size: 400% 400%;
+  background-position: calc(var(--col) * 100% / 3) calc(var(--row) * 100% / 3);
+  image-rendering: pixelated;
+}
+.bottle-yellow { --col: 0; --row: 0; }
+.bottle-red { --col: 1; --row: 0; }
+.bottle-blue { --col: 2; --row: 0; }
+.bottle-grey { --col: 3; --row: 0; }
+.bottle-empty { --col: 0; --row: 1; }
+.bottle-orange { --col: 1; --row: 1; }
+.bottle-green { --col: 2; --row: 1; }
+.bottle-purple { --col: 3; --row: 1; }
+.bottle-lineCol { --col: 0; --row: 2; }
+.bottle-lineRow { --col: 1; --row: 2; }
+.bottle-bomb { --col: 2; --row: 2; }
+.bottle-colorYellow { --col: 3; --row: 2; }
+.bottle-colorRed { --col: 0; --row: 3; }
+.bottle-colorBlue { --col: 1; --row: 3; }
+.bottle-colorGrey { --col: 2; --row: 3; }
+/* The paint colors, for the small dot beside floating paint numbers. */
+.bottle-red, .bottle-colorRed { --c: var(--red); }
+.bottle-yellow, .bottle-colorYellow { --c: var(--yellow); }
+.bottle-blue, .bottle-colorBlue { --c: var(--blue); }
+.bottle-grey, .bottle-colorGrey { --c: var(--grey); }
 .bottle-green { --c: var(--green); }
 .bottle-purple { --c: var(--purple); }
 .bottle-orange { --c: var(--orange); }
-.bottle-red .shape { border-radius: 50%; }
-.bottle-yellow .shape { border-radius: 18%; }
-.bottle-blue .shape { clip-path: polygon(50% 6%, 96% 92%, 4% 92%); }
-.bottle-white .shape { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
-.bottle-empty .shape { background: transparent; border: 2px dashed #94a3b8; border-radius: 50%; opacity: .7; }
-.bottle-green .shape, .bottle-purple .shape, .bottle-orange .shape { clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%); }
-
-/* ---- Items: tap to use. Each has its own shape and a text mark, and the color items show their color ---- */
-.cell[data-item] { cursor: pointer; }
-.cell[data-item] .shape { display: grid; place-items: center; position: relative; }
-.cell[data-item] .shape::after { content: var(--glyph); font-weight: 900; font-size: 1.15rem; line-height: 1; color: #fff; }
-.bottle-lineRow .shape, .bottle-lineCol .shape { background: var(--ink); border-radius: 28%; }
-.bottle-bomb .shape { background: var(--ink); border-radius: 50%; box-shadow: inset 0 0 0 3px var(--accent); }
-.bottle-colorRed, .bottle-colorYellow, .bottle-colorBlue, .bottle-colorWhite { --glyph-color: #fff; }
-.bottle-colorRed { --c: var(--red); }
-.bottle-colorYellow { --c: var(--yellow); --glyph-color: var(--ink); }
-.bottle-colorBlue { --c: var(--blue); }
-.bottle-colorWhite { --c: var(--white); --glyph-color: var(--ink); }
-.bottle-colorRed .shape, .bottle-colorYellow .shape, .bottle-colorBlue .shape, .bottle-colorWhite .shape {
-  clip-path: polygon(50% 0, 62% 35%, 98% 38%, 70% 60%, 80% 95%, 50% 74%, 20% 95%, 30% 60%, 2% 38%, 38% 35%);
-  width: 96%; height: 96%;
-}
-.bottle-colorRed .shape::after, .bottle-colorYellow .shape::after, .bottle-colorBlue .shape::after, .bottle-colorWhite .shape::after {
-  color: var(--glyph-color); font-size: .62rem; margin-top: 8%;
-}
+.cell .shape { width: 118%; height: 118%; } /* the pictures have empty margins, so they are drawn a little larger than the cell */
+.cell[data-item] { cursor: pointer; } /* a tap uses an item */
 .cell.made .shape { animation: made .5s ease-out; }
 @keyframes made { 0% { transform: scale(.3); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
 

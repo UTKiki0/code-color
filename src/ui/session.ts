@@ -136,7 +136,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
       announcer.reset();
       if (options.fullPaint) run = { ...run, battle: { ...run.battle, paint: { ...FULL_PAINT } } };
       state = run.battle;
-      message = `${characterById(characterId).name}: stage 1, battle 1. Swipe a bottle to match three. White bottles hurt enemies; paint can be spent or mixed.`;
+      message = `${characterById(characterId).name}: stage 1, battle 1. Swipe a bottle to match three. Grey bottles hurt enemies; paint can be spent or mixed.`;
     } else {
       const stage = STAGES[mode.stage - 1]!;
       const ability = options.ability ?? drawBossAbilities(rng, 1)[0];

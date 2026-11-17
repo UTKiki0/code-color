@@ -5,12 +5,12 @@ import { createRng } from '../src/game/rng';
 import { ENEMY_ATTACK_DAMAGE, PAINT_MAX, PLAYER_START_HP, STAGES } from '../src/game/rules';
 import { battleOn, cycleRng, enemy, withEdits } from './helpers';
 
-// Refill values (blue, white, empty) chosen so refills do not make new matches.
+// Refill values (blue, grey, empty) chosen so refills do not make new matches.
 const refill = () => cycleRng([0.4, 0.7, 0.9]);
 
 // Crafted moves. Each swaps (2,2) with (3,2) to make a three-in-a-row in row 3, columns 0-2.
 const RED_BOARD = withEdits({ '3,0': 'r', '3,1': 'r', '2,2': 'r' });
-const WHITE_BOARD = withEdits({ '3,0': 'w', '3,1': 'w', '3,2': 'b', '2,2': 'w' });
+const GREY_BOARD = withEdits({ '3,0': 'g', '3,1': 'g', '3,2': 'b', '2,2': 'g' });
 const DOWN: [Cell, Cell] = [{ row: 2, col: 2 }, { row: 3, col: 2 }];
 
 const damageEvents = (events: BattleEvent[]) => events.filter((e) => e.type === 'enemyDamaged');
@@ -18,7 +18,7 @@ const damageEvents = (events: BattleEvent[]) => events.filter((e) => e.type === 
 describe('fixtures', () => {
   it('crafted boards start with no matches', () => {
     expect(findMatches(RED_BOARD)).toEqual([]);
-    expect(findMatches(WHITE_BOARD)).toEqual([]);
+    expect(findMatches(GREY_BOARD)).toEqual([]);
   });
 });
 
@@ -70,35 +70,35 @@ describe('paint', () => {
     expect(result.events).toContainEqual({ type: 'paintGained', color: 'red', amount: 1 });
   });
 
-  it('gives nothing for white bottles', () => {
-    const result = takeTurn(battleOn(WHITE_BOARD, [enemy(0), enemy(1)]), ...DOWN, refill());
+  it('gives nothing for grey bottles', () => {
+    const result = takeTurn(battleOn(GREY_BOARD, [enemy(0), enemy(1)]), ...DOWN, refill());
     expect(result.state.paint).toEqual({ red: 0, yellow: 0, blue: 0 });
   });
 });
 
-describe('white damage', () => {
+describe('grey damage', () => {
   it('one match hits one random enemy', () => {
-    const result = takeTurn(battleOn(WHITE_BOARD, [enemy(0, { hp: 20 }), enemy(1, { hp: 20 })]), ...DOWN, refill());
+    const result = takeTurn(battleOn(GREY_BOARD, [enemy(0, { hp: 20 }), enemy(1, { hp: 20 })]), ...DOWN, refill());
     const hits = damageEvents(result.events);
     expect(hits).toHaveLength(1);
-    expect(hits[0]).toMatchObject({ amount: 2, source: 'white' }); // three whites: base 1 plus the gun's bonus 1
+    expect(hits[0]).toMatchObject({ amount: 2, source: 'grey' }); // three greys: base 1 plus the gun's bonus 1
   });
 
   it('counts an L-shaped match as one match', () => {
-    // Swapping (2,0) down makes white in row 3 (cols 0-2) and column 0 (rows 3-5): 5 bottles.
-    const board = withEdits({ '2,0': 'w', '3,0': 'y', '3,1': 'w', '3,2': 'w', '4,0': 'w', '5,0': 'w' });
+    // Swapping (2,0) down makes grey in row 3 (cols 0-2) and column 0 (rows 3-5): 5 bottles.
+    const board = withEdits({ '2,0': 'g', '3,0': 'y', '3,1': 'g', '3,2': 'g', '4,0': 'g', '5,0': 'g' });
     expect(findMatches(board)).toEqual([]);
     const state = battleOn(board, [enemy(0, { hp: 30 }), enemy(1, { hp: 30 })]);
     const result = takeTurn(state, { row: 2, col: 0 }, { row: 3, col: 0 }, refill());
     const hits = damageEvents(result.events);
     expect(hits).toHaveLength(1);
-    expect(hits[0]).toMatchObject({ amount: 4 }); // five whites: base 1, 2 extra, and the gun's bonus 1
+    expect(hits[0]).toMatchObject({ amount: 4 }); // five greys: base 1, 2 extra, and the gun's bonus 1
   });
 });
 
-describe('white damage events', () => {
+describe('grey damage events', () => {
   it('say which bottles made the match, so the UI can show the damage over it', () => {
-    const result = takeTurn(battleOn(WHITE_BOARD, [enemy(0, { hp: 20 })]), ...DOWN, refill());
+    const result = takeTurn(battleOn(GREY_BOARD, [enemy(0, { hp: 20 })]), ...DOWN, refill());
     const hit = result.events.find((e) => e.type === 'enemyDamaged');
     if (hit?.type !== 'enemyDamaged') throw new Error('expected damage');
     const cells = (hit.cells ?? []).map((c) => `${c.row},${c.col}`).sort();
@@ -109,7 +109,7 @@ describe('white damage events', () => {
 describe('turn timing', () => {
   it('advances every countdown exactly once, even through a cascade', () => {
     // The cascade fixture from the board tests: a red match, then a blue match as bottles fall.
-    const board = withEdits({ '3,0': 'r', '4,0': 'r', '5,0': 'w', '5,1': 'r', '4,1': 'b', '4,2': 'b' });
+    const board = withEdits({ '3,0': 'r', '4,0': 'r', '5,0': 'g', '5,1': 'r', '4,1': 'b', '4,2': 'b' });
     const state = battleOn(board, [enemy(0, { countdown: 4 }), enemy(1, { countdown: 5 })]);
     const result = takeTurn(state, { row: 5, col: 0 }, { row: 5, col: 1 }, createRng(7));
     const steps = result.events.filter((e) => e.type === 'bottlesCleared');
@@ -118,7 +118,7 @@ describe('turn timing', () => {
   });
 
   it('collects the paint from every cascade step', () => {
-    const board = withEdits({ '3,0': 'r', '4,0': 'r', '5,0': 'w', '5,1': 'r', '4,1': 'b', '4,2': 'b' });
+    const board = withEdits({ '3,0': 'r', '4,0': 'r', '5,0': 'g', '5,1': 'r', '4,1': 'b', '4,2': 'b' });
     const state = battleOn(board, [enemy(0, { hp: 99 })]);
     const result = takeTurn(state, { row: 5, col: 0 }, { row: 5, col: 1 }, createRng(7));
     const cleared = { red: 0, yellow: 0, blue: 0 };
@@ -186,7 +186,7 @@ describe('burn', () => {
 
 describe('winning and losing', () => {
   it('wins when the last enemy dies, with no attack that turn', () => {
-    const state = battleOn(WHITE_BOARD, [enemy(0, { hp: 2, countdown: 1 })]);
+    const state = battleOn(GREY_BOARD, [enemy(0, { hp: 2, countdown: 1 })]);
     const result = takeTurn(state, ...DOWN, refill());
     expect(result.state.status).toBe('won');
     expect(result.state.enemies).toEqual([]);

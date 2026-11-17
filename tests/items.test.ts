@@ -5,9 +5,9 @@ import { createRng } from '../src/game/rng';
 import { BOARD_SIZE, BOMB_RADIUS, isItem } from '../src/game/rules';
 import { battleOn, cycleRng, enemy, parse } from './helpers';
 
-// A 7x7 filler of yellow, blue, white, and empty with no run of 3 anywhere and no red, so red
+// A 7x7 filler of yellow, blue, grey, and empty with no run of 3 anywhere and no red, so red
 // shapes placed on it are exactly the matches the test builds. Edits are "row,col" -> letter.
-const FILLER = 'ybwe';
+const FILLER = 'ybge';
 function grid(edits: Record<string, string>): Board {
   const rows = Array.from({ length: BOARD_SIZE }, (_, r) =>
     [...Array.from({ length: BOARD_SIZE }, (_, c) => FILLER[(r * 2 + c * 3) % 4]!)]);
@@ -17,7 +17,7 @@ function grid(edits: Record<string, string>): Board {
   }
   return parse(rows.map((row) => row.join('')));
 }
-const refill = () => cycleRng([0.4, 0.7, 0.9]); // blue, white, empty: never red, never an item
+const refill = () => cycleRng([0.4, 0.7, 0.9]); // blue, grey, empty: never red, never an item
 const at = (row: number, col: number): Cell => ({ row, col });
 const cleared = (events: BoardEvent[]) => events.filter((e) => e.type === 'bottlesCleared');
 const firstStep = (events: BoardEvent[]) => cleared(events)[0]!;
@@ -66,11 +66,11 @@ describe('items made by matches', () => {
     expect(firstStep(result.events)).toMatchObject({ created: [{ row: 3, col: 2, item: 'colorRed' }] });
   });
 
-  it('a run of 5 white makes the white color item', () => {
-    const board = grid({ '2,2': 'w', '3,0': 'w', '3,1': 'w', '3,3': 'w', '3,4': 'w' });
+  it('a run of 5 grey makes the grey color item', () => {
+    const board = grid({ '2,2': 'g', '3,0': 'g', '3,1': 'g', '3,3': 'g', '3,4': 'g' });
     expect(findMatches(board)).toEqual([]);
     const result = swap(board, ...DOWN, refill());
-    expect(firstStep(result.events)).toMatchObject({ created: [{ item: 'colorWhite' }] });
+    expect(firstStep(result.events)).toMatchObject({ created: [{ item: 'colorGrey' }] });
   });
 
   // The swap drops the red at (2,c) down into the corner or middle (3,c), which completes both
@@ -248,18 +248,18 @@ describe('tapping an item is a turn', () => {
     expect(result.state.paint.yellow).toBeGreaterThanOrEqual(1);
   });
 
-  it('damages enemies for cleared whites, once per group of touching whites', () => {
-    // Row 3 becomes WW y WWW b ...: a group of 2 and a group of 3 whites in the row, not touching.
-    const board = grid({ '3,0': 'w', '3,1': 'w', '3,2': 'h', '3,3': 'w', '3,4': 'w', '3,5': 'w', '3,6': 'b' });
+  it('damages enemies for cleared greys, once per group of touching greys', () => {
+    // Row 3 becomes WW y WWW b ...: a group of 2 and a group of 3 greys in the row, not touching.
+    const board = grid({ '3,0': 'g', '3,1': 'g', '3,2': 'h', '3,3': 'g', '3,4': 'g', '3,5': 'g', '3,6': 'b' });
     const result = useItemTurn(state(board), at(3, 2), refill());
-    const hits = result.events.filter((e) => e.type === 'enemyDamaged' && e.source === 'white');
+    const hits = result.events.filter((e) => e.type === 'enemyDamaged' && e.source === 'grey');
     // The brush adds no bonus: a group of 2 does 1 damage and a group of 3 does 1.
     expect(hits.length).toBe(2);
     expect(hits.every((e) => e.type === 'enemyDamaged' && e.amount === 1)).toBe(true);
   });
 
   it('wins the battle when the damage kills the last enemy', () => {
-    const board = grid({ '3,0': 'w', '3,1': 'w', '3,2': 'h', '3,3': 'w', '3,4': 'w', '3,5': 'w', '3,6': 'b' });
+    const board = grid({ '3,0': 'g', '3,1': 'g', '3,2': 'h', '3,3': 'g', '3,4': 'g', '3,5': 'g', '3,6': 'b' });
     const result = useItemTurn(state(board, [enemy(0, { hp: 1 })]), at(3, 2), refill());
     expect(result.state.status).toBe('won');
   });

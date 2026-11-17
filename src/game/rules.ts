@@ -5,14 +5,14 @@ export const BOARD_SIZE = 7;
 export const MIN_MATCH = 3;
 
 // Bottles that spawn on the board.
-export type BaseBottle = 'red' | 'yellow' | 'blue' | 'white' | 'empty';
+export type BaseBottle = 'red' | 'yellow' | 'blue' | 'grey' | 'empty';
 
 // Items (Developer decision, 2026-11-17): bigger matches leave an item on the board that the
 // player taps to clear part of it. They never spawn and never match. The color items clear every
 // bottle of one color, so there is one per matchable color.
-export type ItemBottle = 'lineRow' | 'lineCol' | 'bomb' | 'colorRed' | 'colorYellow' | 'colorBlue' | 'colorWhite';
+export type ItemBottle = 'lineRow' | 'lineCol' | 'bomb' | 'colorRed' | 'colorYellow' | 'colorBlue' | 'colorGrey';
 export type Bottle = BaseBottle | ItemBottle;
-export const ITEM_BOTTLES: ItemBottle[] = ['lineRow', 'lineCol', 'bomb', 'colorRed', 'colorYellow', 'colorBlue', 'colorWhite'];
+export const ITEM_BOTTLES: ItemBottle[] = ['lineRow', 'lineCol', 'bomb', 'colorRed', 'colorYellow', 'colorBlue', 'colorGrey'];
 export const isItem = (bottle: Bottle): bottle is ItemBottle => (ITEM_BOTTLES as Bottle[]).includes(bottle);
 
 // A run of 4 makes a line item (it clears its row or column), a T or L makes a bomb (it clears
@@ -22,10 +22,10 @@ export const COLOR_ITEM_RUN = 5;
 export const BOMB_RADIUS = 2;
 // Which color item clears which bottle. Empties make no item.
 export const COLOR_ITEMS: Partial<Record<Bottle, ItemBottle>> = {
-  red: 'colorRed', yellow: 'colorYellow', blue: 'colorBlue', white: 'colorWhite',
+  red: 'colorRed', yellow: 'colorYellow', blue: 'colorBlue', grey: 'colorGrey',
 };
 export const COLOR_ITEM_CLEARS: Partial<Record<ItemBottle, Bottle>> = {
-  colorRed: 'red', colorYellow: 'yellow', colorBlue: 'blue', colorWhite: 'white',
+  colorRed: 'red', colorYellow: 'yellow', colorBlue: 'blue', colorGrey: 'grey',
 };
 
 // Spawn weights for new bottles. They are relative, so they need not sum to 1.
@@ -33,7 +33,7 @@ export const SPAWN_WEIGHTS: Record<BaseBottle, number> = {
   red: 0.18,
   yellow: 0.18,
   blue: 0.18,
-  white: 0.28,
+  grey: 0.28,
   empty: 0.18,
 };
 
@@ -45,16 +45,16 @@ export const PAINT_MAX = 9;
 
 export type Weapon = 'paintballGun' | 'brush' | 'roller';
 
-// White damage per match: a base amount for a match of three, plus an extra amount for each
-// white bottle beyond the third, plus a bonus some weapons add to every match. A match is one
+// Grey damage per match: a base amount for a match of three, plus an extra amount for each
+// grey bottle beyond the third, plus a bonus some weapons add to every match. A match is one
 // group of touching bottles.
-export const WHITE_BASE_DAMAGE = 1;
-export const WHITE_EXTRA_DAMAGE = 1;
-// The paintball gun's effect is more white damage. The Developer chose the effect but not the
+export const GREY_BASE_DAMAGE = 1;
+export const GREY_EXTRA_DAMAGE = 1;
+// The paintball gun's effect is more grey damage. The Developer chose the effect but not the
 // amount, so +1 per match is a starting value to tune.
-export const WEAPON_WHITE_BONUS: Record<Weapon, number> = { paintballGun: 1, brush: 0, roller: 0 };
-export const whiteMatchDamage = (size: number, weapon: Weapon): number =>
-  WHITE_BASE_DAMAGE + Math.max(0, size - MIN_MATCH) * WHITE_EXTRA_DAMAGE + WEAPON_WHITE_BONUS[weapon];
+export const WEAPON_GREY_BONUS: Record<Weapon, number> = { paintballGun: 1, brush: 0, roller: 0 };
+export const greyMatchDamage = (size: number, weapon: Weapon): number =>
+  GREY_BASE_DAMAGE + Math.max(0, size - MIN_MATCH) * GREY_EXTRA_DAMAGE + WEAPON_GREY_BONUS[weapon];
 
 // Every weapon, and how many are offered after a boss. The offer is drawn from all weapons, so it
 // can include the weapon the player already holds.

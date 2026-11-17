@@ -1,5 +1,5 @@
 import {
-  BRUSH_RED_BURN_TURNS, BRUSH_YELLOW_EXTRA_DAMAGE, WEAPON_WHITE_BONUS, WEAPONS, type Weapon,
+  BRUSH_RED_BURN_TURNS, BRUSH_YELLOW_EXTRA_DAMAGE, WEAPON_GREY_BONUS, WEAPONS, type Weapon,
 } from '../game/rules';
 
 // Names and one-line descriptions shown to the player. The numbers come from the rules,
@@ -7,7 +7,7 @@ import {
 export const WEAPON_INFO: Record<Weapon, { label: string; description: string }> = {
   paintballGun: {
     label: 'Paintball gun',
-    description: `White matches deal +${WEAPON_WHITE_BONUS.paintballGun} damage.`,
+    description: `Grey matches deal +${WEAPON_GREY_BONUS.paintballGun} damage.`,
   },
   brush: {
     label: 'Brush',
@@ -15,7 +15,7 @@ export const WEAPON_INFO: Record<Weapon, { label: string; description: string }>
   },
   roller: {
     label: 'Roller',
-    description: 'White matches hit every enemy.',
+    description: 'Grey matches hit every enemy.',
   },
 };
 

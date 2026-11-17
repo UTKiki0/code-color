@@ -3,7 +3,7 @@ import { isShielded } from './effects';
 import type { Rng } from './rng';
 import {
   ABILITY_COUNTDOWN, BOSS_HEAL_AMOUNT, INK_BLOT_COUNT, ENEMY_ATTACK_DAMAGE, PAINT_THIEF_AMOUNT, PAINT_COLORS, PAINT_MAX, PLAYER_START_HP, STAGES,
-  whiteMatchDamage, type Bottle, type BossAbility, type EffectName, type EnemyDef, type MixColor, type PaintColor, type Weapon,
+  greyMatchDamage, type Bottle, type BossAbility, type EffectName, type EnemyDef, type MixColor, type PaintColor, type Weapon,
 } from './rules';
 
 export interface Burn {
@@ -43,8 +43,8 @@ export type BattleEvent =
       type: 'enemyDamaged';
       enemyId: number;
       amount: number;
-      source: 'white' | 'burn' | 'paint' | 'rainbow';
-      cells?: Cell[]; // for white damage: the bottles of the match that dealt it
+      source: 'grey' | 'burn' | 'paint' | 'rainbow';
+      cells?: Cell[]; // for grey damage: the bottles of the match that dealt it
     }
   | { type: 'effectApplied'; enemyId: number; effect: EffectName }
   | { type: 'paintSpent'; color: PaintColor; amount: number }
@@ -187,7 +187,7 @@ function resolveMove(state: BattleState, moved: SwapResult, rng: Rng): TurnResul
   const events: BattleEvent[] = [];
   const living = () => enemies.filter((e) => e.hp > 0);
 
-  // 1. Matches and cascades: collect paint, and white matches damage a random enemy.
+  // 1. Matches and cascades: collect paint, and grey matches damage a random enemy.
   for (const event of moved.events) {
     events.push(event);
     if (event.type !== 'bottlesCleared') continue;
@@ -201,16 +201,16 @@ function resolveMove(state: BattleState, moved: SwapResult, rng: Rng): TurnResul
       }
     }
     // Each match hits one random enemy (the roller hits every living enemy) for the match damage.
-    for (const match of groupMatches(event.cells, 'white')) {
+    for (const match of groupMatches(event.cells, 'grey')) {
       const targets = living();
       if (targets.length === 0) break;
       const hit = state.weapon === 'roller' ? targets : [targets[Math.floor(rng() * targets.length)]!];
-      const base = whiteMatchDamage(match.length, state.weapon);
+      const base = greyMatchDamage(match.length, state.weapon);
       for (const target of hit) {
-        // A shield halves white damage (rounded down, at least 1).
+        // A shield halves grey damage (rounded down, at least 1).
         const amount = isShielded(target) ? Math.max(1, Math.floor(base / 2)) : base;
         target.hp -= amount;
-        events.push({ type: 'enemyDamaged', enemyId: target.id, amount, source: 'white', cells: match });
+        events.push({ type: 'enemyDamaged', enemyId: target.id, amount, source: 'grey', cells: match });
       }
     }
   }

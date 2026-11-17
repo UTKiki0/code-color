@@ -3,13 +3,13 @@ import { takeTurn } from '../src/game/battle';
 import { findMatches } from '../src/game/board';
 import { mix, spend, useMix } from '../src/game/paint';
 import { createRng } from '../src/game/rng';
-import { MIX_EFFECTS, PAINT_MAX, PLAYER_START_HP, RAINBOW_EFFECT, whiteMatchDamage, type Weapon } from '../src/game/rules';
+import { MIX_EFFECTS, PAINT_MAX, PLAYER_START_HP, RAINBOW_EFFECT, greyMatchDamage, type Weapon } from '../src/game/rules';
 import { battleOn, cycleRng, enemy, withEdits } from './helpers';
 
 const rng = createRng(1);
 const full = { red: 9, yellow: 9, blue: 9 };
 const RED_BOARD = withEdits({ '3,0': 'r', '3,1': 'r', '2,2': 'r' });
-const WHITE_BOARD = withEdits({ '3,0': 'w', '3,1': 'w', '3,2': 'b', '2,2': 'w' });
+const GREY_BOARD = withEdits({ '3,0': 'g', '3,1': 'g', '3,2': 'b', '2,2': 'g' });
 const SWAP = [{ row: 2, col: 2 }, { row: 3, col: 2 }] as const;
 
 // A battle with chosen paint, held mix, weapon, and enemies.
@@ -293,8 +293,8 @@ describe('rainbow', () => {
   });
 });
 
-// Swapping (2,2) down makes four whites in row 3, columns 0-3.
-const FOUR_WHITES = withEdits({ '3,0': 'w', '3,1': 'w', '3,2': 'b', '3,3': 'w', '2,2': 'w' });
+// Swapping (2,2) down makes four greys in row 3, columns 0-3.
+const FOUR_GREYS = withEdits({ '3,0': 'g', '3,1': 'g', '3,2': 'b', '3,3': 'g', '2,2': 'g' });
 
 describe('roller', () => {
   const rollerHits = (board: ReturnType<typeof withEdits>) => {
@@ -303,37 +303,37 @@ describe('roller', () => {
     return result.events.filter((e) => e.type === 'enemyDamaged');
   };
 
-  it('a white match damages every living enemy, once each', () => {
-    const hits = rollerHits(WHITE_BOARD); // a 3-bottle match
+  it('a grey match damages every living enemy, once each', () => {
+    const hits = rollerHits(GREY_BOARD); // a 3-bottle match
     expect(hits).toHaveLength(2);
     expect(hits.every((e) => e.type === 'enemyDamaged' && e.amount === 1)).toBe(true);
   });
 
   it('uses the same damage formula for a longer match', () => {
-    expect(findMatches(FOUR_WHITES)).toEqual([]);
-    const hits = rollerHits(FOUR_WHITES);
+    expect(findMatches(FOUR_GREYS)).toEqual([]);
+    const hits = rollerHits(FOUR_GREYS);
     expect(hits).toHaveLength(2);
     expect(hits.every((e) => e.type === 'enemyDamaged' && e.amount === 2)).toBe(true);
   });
 });
 
-describe('white damage', () => {
-  it('is 1 for a match of three, plus 1 for each white beyond the third', () => {
-    expect([3, 4, 5, 6, 7].map((size) => whiteMatchDamage(size, 'brush'))).toEqual([1, 2, 3, 4, 5]);
-    expect([3, 4, 5, 6, 7].map((size) => whiteMatchDamage(size, 'roller'))).toEqual([1, 2, 3, 4, 5]);
+describe('grey damage', () => {
+  it('is 1 for a match of three, plus 1 for each grey beyond the third', () => {
+    expect([3, 4, 5, 6, 7].map((size) => greyMatchDamage(size, 'brush'))).toEqual([1, 2, 3, 4, 5]);
+    expect([3, 4, 5, 6, 7].map((size) => greyMatchDamage(size, 'roller'))).toEqual([1, 2, 3, 4, 5]);
   });
 
   it('gets the paintball gun\'s bonus of 1 on every match', () => {
-    expect([3, 4, 5].map((size) => whiteMatchDamage(size, 'paintballGun'))).toEqual([2, 3, 4]);
+    expect([3, 4, 5].map((size) => greyMatchDamage(size, 'paintballGun'))).toEqual([2, 3, 4]);
   });
 
   it.each([
     ['paintballGun', 18, 17],
     ['brush', 19, 18],
-  ] as const)('with the %s: 3 whites leave 20 HP at %i and 4 whites at %i', (weapon, afterThree, afterFour) => {
-    const three = takeTurn(battleOn(WHITE_BOARD, [enemy(0, { hp: 20 })], { weapon }), ...SWAP, cycleRng([0.4, 0.7, 0.9]));
+  ] as const)('with the %s: 3 greys leave 20 HP at %i and 4 greys at %i', (weapon, afterThree, afterFour) => {
+    const three = takeTurn(battleOn(GREY_BOARD, [enemy(0, { hp: 20 })], { weapon }), ...SWAP, cycleRng([0.4, 0.7, 0.9]));
     expect(three.state.enemies[0]!.hp).toBe(afterThree);
-    const four = takeTurn(battleOn(FOUR_WHITES, [enemy(0, { hp: 20 })], { weapon }), ...SWAP, cycleRng([0.4, 0.7, 0.9]));
+    const four = takeTurn(battleOn(FOUR_GREYS, [enemy(0, { hp: 20 })], { weapon }), ...SWAP, cycleRng([0.4, 0.7, 0.9]));
     expect(four.state.enemies[0]!.hp).toBe(afterFour);
   });
 });

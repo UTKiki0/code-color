@@ -22,7 +22,7 @@ const PAINT_CSS: Record<PaintColor, string> = { red: 'var(--red)', yellow: 'var(
 type ClearEvent = Extract<BattleEvent, { type: 'bottlesCleared' }>;
 interface Step {
   clear: ClearEvent;
-  derived: BattleEvent[]; // paint gained and white damage caused by this step's matches
+  derived: BattleEvent[]; // paint gained and grey damage caused by this step's matches
 }
 
 /** Groups the move's events by cascade step. Burn, deaths, and attacks come after the last step. */
@@ -30,7 +30,7 @@ function groupSteps(events: BattleEvent[]): Step[] {
   const steps: Step[] = [];
   for (const event of events) {
     if (event.type === 'bottlesCleared') steps.push({ clear: event, derived: [] });
-    else if (steps.length > 0 && (event.type === 'paintGained' || (event.type === 'enemyDamaged' && event.source === 'white'))) {
+    else if (steps.length > 0 && (event.type === 'paintGained' || (event.type === 'enemyDamaged' && event.source === 'grey'))) {
       steps[steps.length - 1]!.derived.push(event);
     }
   }

@@ -34,7 +34,7 @@ describe('spawning', () => {
     expect(pickBottle(() => 0.0)).toBe('red');
     expect(pickBottle(() => 0.2)).toBe('yellow');
     expect(pickBottle(() => 0.4)).toBe('blue');
-    expect(pickBottle(() => 0.6)).toBe('white');
+    expect(pickBottle(() => 0.6)).toBe('grey');
     expect(pickBottle(() => 0.95)).toBe('empty');
   });
 
@@ -124,7 +124,7 @@ describe('cascades', () => {
     // Swapping (5,0)/(5,1) clears red in column 0, rows 3-5. The blue bottle at (1,0)
     // falls to (4,0) and lines up with the blues at (4,1) and (4,2): a second match.
     const board = withEdits({
-      '3,0': 'r', '4,0': 'r', '5,0': 'w', '5,1': 'r', '4,1': 'b', '4,2': 'b',
+      '3,0': 'r', '4,0': 'r', '5,0': 'g', '5,1': 'r', '4,1': 'b', '4,2': 'b',
     });
     expect(findMatches(board)).toEqual([]);
     const result = swap(board, { row: 5, col: 0 }, { row: 5, col: 1 }, createRng(7));

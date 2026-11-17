@@ -7,7 +7,7 @@ import { createRng } from '../src/game/rng';
 import { ABILITY_COUNTDOWN, BOSS_ABILITIES, BOSS_HEAL_AMOUNT, INK_BLOT_COUNT, PAINT_THIEF_AMOUNT, SHIELD_BREAK_TURNS, STAGES, type Bottle } from '../src/game/rules';
 import { battleOn, cycleRng, enemy, withEdits } from './helpers';
 
-// A red match (no white, so no damage to the boss) made by swapping (2,2) with (3,2).
+// A red match (no grey, so no damage to the boss) made by swapping (2,2) with (3,2).
 // Refill values are chosen so refills do not make new matches (same as battle.test.ts).
 const board = () => withEdits({ '3,0': 'r', '3,1': 'r', '2,2': 'r' });
 const A = { row: 2, col: 2 }, B = { row: 3, col: 2 };
@@ -69,10 +69,10 @@ describe('heal ability', () => {
 const thief = (over = {}) => healer({ hp: 30, ability: { kind: 'paintThief', countdown: 1 }, ...over });
 const withPaint = (paint: { red: number; yellow: number; blue: number }, boss = thief()) => battleOn(board(), [boss], { paint });
 
-// A white match gains no paint, so the stored paint is exactly what the test sets.
-const WHITE = withEdits({ '3,0': 'w', '3,1': 'w', '3,2': 'b', '2,2': 'w' });
-const whiteWith = (paint: { red: number; yellow: number; blue: number }) => battleOn(WHITE, [thief()], { paint });
-const playWhite = (b: ReturnType<typeof battleOn>) => takeTurn(b, A, B, refill());
+// A grey match gains no paint, so the stored paint is exactly what the test sets.
+const GREY = withEdits({ '3,0': 'g', '3,1': 'g', '3,2': 'b', '2,2': 'g' });
+const greyWith = (paint: { red: number; yellow: number; blue: number }) => battleOn(GREY, [thief()], { paint });
+const playGrey = (b: ReturnType<typeof battleOn>) => takeTurn(b, A, B, refill());
 
 describe('paint thief ability', () => {
   it('takes paint from the fullest bottle when its countdown reaches 0', () => {
@@ -90,7 +90,7 @@ describe('paint thief ability', () => {
   });
 
   it('takes only what is there, and resets its countdown', () => {
-    const r = playWhite(whiteWith({ red: 2, yellow: 0, blue: 0 }));
+    const r = playGrey(greyWith({ red: 2, yellow: 0, blue: 0 }));
     expect(r.state.paint.red).toBe(0);
     expect(r.events).toContainEqual({ type: 'paintStolen', enemyId: 0, color: 'red', amount: 2 });
     expect(r.state.enemies[0]!.ability!.countdown).toBe(ABILITY_COUNTDOWN);
@@ -105,7 +105,7 @@ describe('paint thief ability', () => {
   });
 
   it('does nothing, with no event, when the player has no paint, and still resets', () => {
-    const r = playWhite(whiteWith({ red: 0, yellow: 0, blue: 0 }));
+    const r = playGrey(greyWith({ red: 0, yellow: 0, blue: 0 }));
     expect(r.ok).toBe(true);
     expect(r.events.some((e) => e.type === 'paintStolen')).toBe(false);
     expect(r.state.enemies[0]!.ability!.countdown).toBe(ABILITY_COUNTDOWN);
@@ -187,11 +187,11 @@ describe('ink blot ability', () => {
 
 // A shield boss; countdown 0 is up, above 0 is the turns until it returns.
 const shielded = (countdown = 0, over = {}) => healer({ hp: 30, ability: { kind: 'shield', countdown }, ...over });
-// Three whites in a row made by swapping (2,2) with (3,2): one white match of 3 (base damage 1).
-// Four whites would be 2, so a second board gives a damage-2 match to show the halving.
-const WHITE3 = withEdits({ '3,0': 'w', '3,1': 'w', '3,2': 'b', '2,2': 'w' });
-const WHITE4 = withEdits({ '3,0': 'w', '3,1': 'w', '3,2': 'b', '3,3': 'w', '2,2': 'w' });
-const whiteDamage = (r: ReturnType<typeof play>) => r.events.flatMap((e) => (e.type === 'enemyDamaged' && e.source === 'white' ? [e.amount] : []));
+// Three greys in a row made by swapping (2,2) with (3,2): one grey match of 3 (base damage 1).
+// Four greys would be 2, so a second board gives a damage-2 match to show the halving.
+const GREY3 = withEdits({ '3,0': 'g', '3,1': 'g', '3,2': 'b', '2,2': 'g' });
+const GREY4 = withEdits({ '3,0': 'g', '3,1': 'g', '3,2': 'b', '3,3': 'g', '2,2': 'g' });
+const greyDamage = (r: ReturnType<typeof play>) => r.events.flatMap((e) => (e.type === 'enemyDamaged' && e.source === 'grey' ? [e.amount] : []));
 const gun = { weapon: 'paintballGun' as const };
 
 describe('shield ability', () => {
@@ -200,24 +200,24 @@ describe('shield ability', () => {
     expect(state.enemies[0]!.ability).toEqual({ kind: 'shield', countdown: 0 });
   });
 
-  it('halves white damage while up (rounded down, at least 1)', () => {
-    // A 4-white match does 2 damage with the gun's base rules plus its bonus; compare shielded and not.
-    const plain = takeTurn(battleOn(WHITE4, [shielded(0, { ability: null })], gun), A, B, refill());
-    const shield = takeTurn(battleOn(WHITE4, [shielded(0)], gun), A, B, refill());
-    const [full] = whiteDamage(plain), [half] = whiteDamage(shield);
+  it('halves grey damage while up (rounded down, at least 1)', () => {
+    // A 4-grey match does 2 damage with the gun's base rules plus its bonus; compare shielded and not.
+    const plain = takeTurn(battleOn(GREY4, [shielded(0, { ability: null })], gun), A, B, refill());
+    const shield = takeTurn(battleOn(GREY4, [shielded(0)], gun), A, B, refill());
+    const [full] = greyDamage(plain), [half] = greyDamage(shield);
     expect(half).toBe(Math.max(1, Math.floor(full! / 2)));
     expect(half).toBeLessThan(full!);
   });
 
-  it('never reduces white damage below 1', () => {
-    const r = takeTurn(battleOn(WHITE3, [shielded(0)], { weapon: 'brush' }), A, B, refill());
-    expect(whiteDamage(r)).toEqual([1]); // a brush match of 3 does 1, which stays 1
+  it('never reduces grey damage below 1', () => {
+    const r = takeTurn(battleOn(GREY3, [shielded(0)], { weapon: 'brush' }), A, B, refill());
+    expect(greyDamage(r)).toEqual([1]); // a brush match of 3 does 1, which stays 1
   });
 
-  it('does not halve white damage once the shield is down', () => {
-    const down = takeTurn(battleOn(WHITE4, [shielded(2)], gun), A, B, refill());
-    const plain = takeTurn(battleOn(WHITE4, [shielded(0, { ability: null })], gun), A, B, refill());
-    expect(whiteDamage(down)).toEqual(whiteDamage(plain));
+  it('does not halve grey damage once the shield is down', () => {
+    const down = takeTurn(battleOn(GREY4, [shielded(2)], gun), A, B, refill());
+    const plain = takeTurn(battleOn(GREY4, [shielded(0, { ability: null })], gun), A, B, refill());
+    expect(greyDamage(down)).toEqual(greyDamage(plain));
   });
 
   it('is broken for SHIELD_BREAK_TURNS turns by a paint spend, which is not halved', () => {
@@ -244,8 +244,8 @@ describe('shield ability', () => {
     expect(r.events).toContainEqual({ type: 'shieldBroken', enemyId: 0 });
   });
 
-  it('is not broken by white damage, and a regular enemy is not affected by paint breaking anything', () => {
-    const r = takeTurn(battleOn(WHITE3, [shielded()], gun), A, B, refill());
+  it('is not broken by grey damage, and a regular enemy is not affected by paint breaking anything', () => {
+    const r = takeTurn(battleOn(GREY3, [shielded()], gun), A, B, refill());
     expect(r.state.enemies[0]!.ability!.countdown).toBe(0);
     const plain = spend(battleOn(board(), [enemy(0)], { paint: { red: 0, yellow: 3, blue: 0 } }), 'yellow', 0);
     expect(plain.events.some((e) => e.type === 'shieldBroken')).toBe(false);

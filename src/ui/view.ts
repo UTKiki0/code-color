@@ -62,7 +62,7 @@ const ABILITY_LABELS: Record<BossAbility, string> = {
 function abilityText(ability: NonNullable<Enemy['ability']>): string {
   const label = ABILITY_LABELS[ability.kind];
   if (ability.kind !== 'shield') return `${label}: acts in ${ability.countdown}`;
-  return ability.countdown === 0 ? `${label}: up (halves white damage)` : `${label} broken: back in ${ability.countdown}`;
+  return ability.countdown === 0 ? `${label}: up (halves grey damage)` : `${label} broken: back in ${ability.countdown}`;
 }
 
 function enemyCard(enemy: Enemy, view: ViewOptions): HTMLElement {
@@ -103,7 +103,7 @@ function board(state: BattleState, view: ViewOptions): HTMLElement {
         `cell bottle-${bottle}${has(view.madeCells, row, col) ? ' made' : ''}${has(view.popCells, row, col) ? ' pop' : ''}${has(view.shake, row, col) ? ' shake' : ''}${has(view.blotCells, row, col) ? ' blot' : ''}${fall ? ' fall' : ''}`,
         { 'data-row': String(row), 'data-col': String(col), role: 'gridcell', 'aria-label': item ? `${item.label} item, ${item.description}. Tap to use. Row ${row + 1}, column ${col + 1}` : `${bottle} bottle, row ${row + 1}, column ${col + 1}` },
       );
-      if (item) { cell.dataset.item = bottle; cell.style.setProperty('--glyph', `'${item.glyph}'`); }
+      if (item) cell.dataset.item = bottle;
       if (fall) cell.style.setProperty('--fall', String(fall));
       cell.append(el('div', 'shape'));
       root.append(cell);
