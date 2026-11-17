@@ -103,12 +103,33 @@ describe('mix', () => {
     ['red', 'blue', 'purple'],
     ['yellow', 'red', 'orange'],
   ] as const)('%s + %s makes %s and consumes 9 of each', (a, b, result) => {
-    const after = mix(state(full), a, b);
+    const after = mix({ ...state(full), playerHp: 10 }, a, b); // hurt, so green can be made too
     expect(after.ok).toBe(true);
     expect(after.state.heldMix).toBe(result);
     expect(after.state.paint[a]).toBe(0);
     expect(after.state.paint[b]).toBe(0);
     expect(after.events).toEqual([{ type: 'mixed', mix: result }]);
+  });
+
+  it('green can be made at full HP (it can still go into a rainbow)', () => {
+    const before = state(full);
+    expect(before.playerHp).toBe(PLAYER_START_HP);
+    const result = mix(before, 'blue', 'yellow');
+    expect(result.ok).toBe(true);
+    expect(result.state.heldMix).toBe('green');
+    expect(result.state.paint).toEqual({ red: 9, yellow: 0, blue: 0 });
+  });
+
+  it('every mix that can be made can be used, so the locked board can never be stuck', () => {
+    for (const [a, b] of [['blue', 'yellow'], ['red', 'blue'], ['red', 'yellow']] as const) {
+      for (const playerHp of [1, 10, PLAYER_START_HP - 1, PLAYER_START_HP]) {
+        const made = mix({ ...state(full), playerHp }, a, b);
+        if (!made.ok) continue;
+        const held = made.state;
+        const usable = useMix(held, { player: true }).ok || held.enemies.some((e) => useMix(held, { enemyId: e.id }).ok);
+        expect(usable, `${a}+${b} at ${playerHp} HP`).toBe(true);
+      }
+    }
   });
 
   it('requires both bottles to be full', () => {
@@ -151,10 +172,21 @@ describe('using a mix', () => {
     expect(result.events).toContainEqual({ type: 'playerHealed', amount: 2 });
   });
 
-  it('green is refused at full HP, so the mix is kept', () => {
-    const result = useMix(held('green', undefined, { playerHp: PLAYER_START_HP }), { player: true });
-    expect(result.ok).toBe(false);
-    expect(result.state.heldMix).toBe('green');
+  it('green dropped on the player at full HP does nothing: the mix is used up and the board unlocks', () => {
+    const before = held('green', undefined, { playerHp: PLAYER_START_HP });
+    const result = useMix(before, { player: true });
+    expect(result.ok).toBe(true);
+    expect(result.state.playerHp).toBe(PLAYER_START_HP);
+    expect(result.state.heldMix).toBeNull();
+    expect(result.state.enemies).toEqual(before.enemies);
+    expect(result.events).toContainEqual({ type: 'playerHealed', amount: 0 });
+  });
+
+  it('green at full HP can still become a rainbow when red is full', () => {
+    const before = { ...state({ red: 9 }), heldMix: 'green' as const };
+    const result = useMix(before, { color: 'red' });
+    expect(result.ok).toBe(true);
+    expect(result.events).toContainEqual({ type: 'rainbow' });
   });
 
   it('green is refused on an enemy, and the other mixes are refused on the player', () => {

@@ -49,7 +49,7 @@ function describe(events: BattleEvent[], bossFight: boolean): string {
     else if (e.type === 'inkBlotted') parts.push(`${enemyName(e.enemyId)} blotted ${e.cells.length} bottles`)
     else if (e.type === 'shieldBroken') parts.push(`${enemyName(e.enemyId)}'s shield broke`)
     else if (e.type === 'shieldRestored') parts.push(`${enemyName(e.enemyId)}'s shield is back`)
-    else if (e.type === 'playerHealed') parts.push(`You healed ${e.amount} HP`)
+    else if (e.type === 'playerHealed') parts.push(e.amount > 0 ? `You healed ${e.amount} HP` : 'You are at full HP: the green mix did nothing')
     else if (e.type === 'bossHealed') parts.push(`Boss healed ${e.amount} HP`);
     else if (e.type === 'shuffled') parts.push('Board shuffled');
   }
@@ -85,7 +85,7 @@ function floatThefts(events: BattleEvent[]): void {
 
 /** A green number over the player panel when a mix heals. */
 function floatPlayerHeals(events: BattleEvent[]): void {
-  for (const e of events) if (e.type === 'playerHealed') floatOverPlayer(`+${e.amount}`, 'heal');
+  for (const e of events) if (e.type === 'playerHealed' && e.amount > 0) floatOverPlayer(`+${e.amount}`, 'heal');
 }
 
 /** Short notes over the boss when its shield breaks or returns. */
@@ -265,7 +265,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
     useMix(target) {
       const held = state.heldMix;
       const rejected = 'color' in target ? `Rainbow needs the third paint bottle full (${PAINT_MAX}).`
-        : 'player' in target ? (held === 'green' ? 'You are at full HP, so the heal would be wasted.' : 'Only green heals you. Drop this mix on an enemy.')
+        : 'player' in target ? 'Only green heals you. Drop this mix on an enemy.'
         : held === 'green' ? 'Green heals you: drop it on your panel.' : 'Drop the mix on a living enemy.';
       applyPaint(useMix(state, target), rejected);
     },

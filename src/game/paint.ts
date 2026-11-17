@@ -46,7 +46,6 @@ export function mix(state: BattleState, a: PaintColor, b: PaintColor): TurnResul
   if (state.paint[a] < PAINT_MAX || state.paint[b] < PAINT_MAX) return reject(state);
   const result = MIX_COLORS.find((m) => MIX_RECIPES[m].includes(a) && MIX_RECIPES[m].includes(b));
   if (!result) return reject(state);
-
   const paint = { ...state.paint, [a]: 0, [b]: 0 };
   return {
     ok: true,
@@ -56,7 +55,7 @@ export function mix(state: BattleState, a: PaintColor, b: PaintColor): TurnResul
 }
 
 /**
- * Uses the held mix. Green goes on the player (it heals); the other mixes go on an enemy (an
+ * Uses the held mix. Green goes on the player (it heals, or does nothing at full HP); the other mixes go on an enemy (an
  * effect with allEnemies hits every living enemy). Dropping a mix on the third paint's full
  * bottle makes rainbow instead.
  */
@@ -70,8 +69,9 @@ export function useMix(
   const enemies = state.enemies.map((e) => ({ ...e }));
 
   if ('player' in target) {
-    // Refused at full HP, so a mix is not wasted by accident.
-    if (!effect.healPlayer || state.playerHp >= PLAYER_START_HP) return reject(state);
+    // At full HP the heal is 0: the mix is used up and does nothing, so it never locks the board
+    // (green made just to reach rainbow can be dropped here too).
+    if (!effect.healPlayer) return reject(state);
     const amount = Math.min(effect.healPlayer, PLAYER_START_HP - state.playerHp);
     const events: BattleEvent[] = [{ type: 'mixUsed', mix: held }, { type: 'playerHealed', amount }];
     return finish(state, { playerHp: state.playerHp + amount, heldMix: null }, events);
