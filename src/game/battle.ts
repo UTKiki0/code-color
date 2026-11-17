@@ -79,7 +79,7 @@ export interface BattleSetup {
 
 /** A fresh battle: used to start and to restart, and by runs to start each battle. */
 export function createBattle(rng: Rng, setup: BattleSetup = {}): BattleState {
-  const enemies = setup.enemies ?? STAGES[0]!.battle;
+  const enemies = setup.enemies ?? STAGES[0]!.battles[0]!;
   return {
     board: createBoard(rng),
     paint: { ...(setup.paint ?? { red: 0, yellow: 0, blue: 0 }) },

@@ -276,6 +276,16 @@ describe('shield ability', () => {
   });
 });
 
+// Wins regular battles until the run reaches the first boss.
+const toFirstBoss = (start: ReturnType<typeof createRun>) => {
+  let run = start;
+  // Bounded, so a broken run rule fails the test instead of looping forever.
+  for (let i = 0; i < 20 && run.encounter !== 'boss'; i++) {
+    run = continueRun(updateBattle(run, { ...run.battle, enemies: [], status: 'won' }, createRng(1)), createRng(1));
+  }
+  return run;
+};
+
 describe('boss abilities in a run', () => {
   it('draws different abilities without repeats', () => {
     const leftOut = new Set<string>();
@@ -291,7 +301,7 @@ describe('boss abilities in a run', () => {
   it('the run gives the boss its ability and keeps it for the whole run', () => {
     let run = createRun(createRng(3));
     const planned = run.bossAbilities;
-    run = continueRun(updateBattle(run, { ...run.battle, enemies: [], status: 'won' }, createRng(1)), createRng(1));
+    run = toFirstBoss(run);
     expect(run.encounter).toBe('boss');
     expect(run.battle.enemies[0]!.ability?.kind).toBe(planned[0]);
     expect(run.bossAbilities).toBe(planned);
@@ -300,7 +310,7 @@ describe('boss abilities in a run', () => {
   it('only the boss encounters are marked as bosses', () => {
     let run = createRun(createRng(3));
     expect(run.battle.enemies.every((e) => !e.boss)).toBe(true);
-    run = continueRun(updateBattle(run, { ...run.battle, enemies: [], status: 'won' }, createRng(1)), createRng(1));
+    run = toFirstBoss(run);
     expect(run.battle.enemies.map((e) => e.boss)).toEqual([true]);
   });
 

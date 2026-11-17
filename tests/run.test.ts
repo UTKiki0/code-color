@@ -23,11 +23,16 @@ const advance = (run: RunState, times: number, over: Partial<BattleState> = {}):
   return current;
 };
 
+// Encounters before the stage's boss: stage s starts after the battles and bosses of earlier stages.
+const bossIndex = (stage: number) => STAGES.slice(0, stage + 1).reduce((n, st) => n + st.battles.length, 0) + stage;
+const ENCOUNTERS = STAGES.reduce((n, st) => n + st.battles.length + 1, 0);
+const FIRST_BOSS = bossIndex(0);
+
 describe('a new run', () => {
   it('starts at the first regular battle with full HP, no paint, and the paintball gun', () => {
     const run = createRun(createRng(5));
     expect(run).toMatchObject({ stage: 0, encounter: 'battle', phase: 'fighting' });
-    expect(run.battle.enemies.map((e) => [e.hp, e.countdown])).toEqual(STAGES[0]!.battle.map((e) => [e.hp, e.countdown]));
+    expect(run.battle.enemies.map((e) => [e.hp, e.countdown])).toEqual(STAGES[0]!.battles[0]!.map((e) => [e.hp, e.countdown]));
     expect(run.battle.playerHp).toBe(PLAYER_START_HP);
     expect(run.battle.paint).toEqual({ red: 0, yellow: 0, blue: 0 });
     expect(run.battle.weapon).toBe('paintballGun');
@@ -59,36 +64,57 @@ describe('run phases', () => {
   });
 
   it('is won only by beating the final boss, and then cannot continue', () => {
-    const atFinalBoss = advance(createRun(rng), STAGES.length * 2 - 1);
+    const atFinalBoss = advance(createRun(rng), ENCOUNTERS - 1);
     expect(atFinalBoss).toMatchObject({ stage: STAGES.length - 1, encounter: 'boss' });
     const won = winBattle(atFinalBoss);
     expect(won.phase).toBe('won');
     expect(continueRun(won, rng)).toBe(won);
     // Beating the first stage's boss does not win the run; it leads to a weapon choice.
-    expect(winBattle(advance(createRun(rng), 1)).phase).toBe('choosingWeapon');
+    expect(winBattle(advance(createRun(rng), FIRST_BOSS)).phase).toBe('choosingWeapon');
   });
 });
 
 describe('the order of encounters', () => {
-  it('goes battle, boss, battle, boss, battle, boss with each stage\'s enemies', () => {
+  it('goes through each stage\'s battles in order, then its boss, with that encounter\'s enemies', () => {
     let run = createRun(rng);
     const seen: string[] = [];
-    for (let i = 0; i < STAGES.length * 2; i++) {
-      seen.push(`${run.stage}:${run.encounter}:${run.battle.enemies.length}`);
-      const expected = run.encounter === 'boss' ? [STAGES[run.stage]!.boss] : STAGES[run.stage]!.battle;
+    const expectedSeen: string[] = [];
+    STAGES.forEach((stage, i) => {
+      stage.battles.forEach((_, round) => expectedSeen.push(`${i}:battle:${round}:3`));
+      expectedSeen.push(`${i}:boss:0:1`);
+    });
+    for (let i = 0; i < ENCOUNTERS; i++) {
+      seen.push(`${run.stage}:${run.encounter}:${run.round}:${run.battle.enemies.length}`);
+      const expected = run.encounter === 'boss' ? [STAGES[run.stage]!.boss] : STAGES[run.stage]!.battles[run.round]!;
       expect(run.battle.enemies.map((e) => e.hp)).toEqual(expected.map((e) => e.hp));
       run = moveOn(winBattle(run));
     }
-    expect(seen).toEqual(['0:battle:3', '0:boss:1', '1:battle:3', '1:boss:1', '2:battle:3', '2:boss:1']);
+    expect(seen).toEqual(expectedSeen);
+  });
+
+  it('each stage has more than one regular battle, and a later round is tougher than an earlier one', () => {
+    for (const stage of STAGES) {
+      expect(stage.battles.length).toBeGreaterThan(1);
+      const total = (round: number) => stage.battles[round]!.reduce((sum, e) => sum + e.hp, 0);
+      expect(total(1)).toBeGreaterThan(total(0));
+    }
+  });
+
+  it('carries HP and paint between the battles of a stage with no healing', () => {
+    const first = winBattle(createRun(rng), { playerHp: 9, paint: { red: 4, yellow: 0, blue: 7 } });
+    const second = moveOn(first);
+    expect(second).toMatchObject({ stage: 0, encounter: 'battle', round: 1 });
+    expect(second.battle.playerHp).toBe(9);
+    expect(second.battle.paint).toEqual({ red: 4, yellow: 0, blue: 7 });
   });
 
   it('gives bosses their countdown and their own attack damage', () => {
-    const boss = advance(createRun(rng), 1).battle.enemies[0]!;
+    const boss = advance(createRun(rng), FIRST_BOSS).battle.enemies[0]!;
     expect(boss).toMatchObject({ hp: 30, countdown: 5, startCountdown: 5, attack: 4 });
   });
 
   it('makes a boss hit the player for its own damage when its countdown ends', () => {
-    const atBoss = advance(createRun(rng), 1);
+    const atBoss = advance(createRun(rng), FIRST_BOSS);
     const nearAttack = { ...atBoss.battle, enemies: atBoss.battle.enemies.map((e) => ({ ...e, countdown: 1 })),
       board: withEdits({ '3,0': 'r', '3,1': 'r', '2,2': 'r' }) };
     const result = takeTurn(nearAttack, { row: 2, col: 2 }, { row: 3, col: 2 }, cycleRng([0.4, 0.7, 0.9]));
@@ -96,8 +122,8 @@ describe('the order of encounters', () => {
   });
 
   it('shortens regular enemy countdowns in later stages', () => {
-    const firstTotal = STAGES[0]!.battle.reduce((sum, e) => sum + e.countdown, 0);
-    const lastTotal = STAGES[2]!.battle.reduce((sum, e) => sum + e.countdown, 0);
+    const firstTotal = STAGES[0]!.battles[0]!.reduce((sum, e) => sum + e.countdown, 0);
+    const lastTotal = STAGES[2]!.battles[0]!.reduce((sum, e) => sum + e.countdown, 0);
     expect(lastTotal).toBeLessThan(firstTotal);
   });
 });
@@ -117,20 +143,22 @@ describe('what carries over', () => {
   });
 
   it('does not heal after a regular battle', () => {
-    const next = continueRun(winBattle(createRun(rng), { playerHp: 7 }), rng);
+    // The last regular battle of the stage, then the boss: neither battle heals.
+    const lastBattle = advance(createRun(rng), FIRST_BOSS - 1, { playerHp: 7 });
+    const next = continueRun(winBattle(lastBattle, { playerHp: 7 }), rng);
     expect(next.encounter).toBe('boss');
     expect(next.battle.playerHp).toBe(7);
   });
 
   it('heals 10 after a boss', () => {
-    const atBoss = advance(createRun(rng), 1);
+    const atBoss = advance(createRun(rng), FIRST_BOSS);
     const next = moveOn(winBattle(atBoss, { playerHp: 5 }));
     expect(next).toMatchObject({ stage: 1, encounter: 'battle' });
     expect(next.battle.playerHp).toBe(5 + POST_BOSS_HEAL);
   });
 
   it('never heals above the maximum', () => {
-    const atBoss = advance(createRun(rng), 1);
+    const atBoss = advance(createRun(rng), FIRST_BOSS);
     const next = moveOn(winBattle(atBoss, { playerHp: 15 }));
     expect(next.battle.playerHp).toBe(PLAYER_START_HP);
   });
@@ -154,13 +182,13 @@ describe('starting a new run', () => {
 });
 
 describe('the weapon offer', () => {
-  const afterFirstBoss = () => winBattle(advance(createRun(rng), 1));
+  const afterFirstBoss = () => winBattle(advance(createRun(rng), FIRST_BOSS));
 
   it('is drawn after each of the first two bosses', () => {
     const first = afterFirstBoss();
     expect(first.phase).toBe('choosingWeapon');
     expect(first.weaponOffer).toHaveLength(2);
-    const secondBoss = advance(createRun(rng), 3);
+    const secondBoss = advance(createRun(rng), bossIndex(1));
     expect(secondBoss).toMatchObject({ stage: 1, encounter: 'boss' });
     expect(winBattle(secondBoss).phase).toBe('choosingWeapon');
   });
@@ -169,7 +197,7 @@ describe('the weapon offer', () => {
     const regular = winBattle(createRun(rng));
     expect(regular.phase).toBe('cleared');
     expect(regular.weaponOffer).toBeNull();
-    const finalBoss = winBattle(advance(createRun(rng), STAGES.length * 2 - 1));
+    const finalBoss = winBattle(advance(createRun(rng), ENCOUNTERS - 1));
     expect(finalBoss.phase).toBe('won');
     expect(finalBoss.weaponOffer).toBeNull();
   });
@@ -205,7 +233,7 @@ describe('the weapon offer', () => {
   });
 
   it('is cleared and the chosen weapon replaces the current one, moving on to the next battle', () => {
-    const choosing = winBattle(advance(createRun(rng), 1), { weapon: 'paintballGun', playerHp: 5 });
+    const choosing = winBattle(advance(createRun(rng), FIRST_BOSS), { weapon: 'paintballGun', playerHp: 5 });
     const pick = choosing.weaponOffer!.find((w) => w !== 'paintballGun') ?? choosing.weaponOffer![0]!;
     const next = chooseWeapon(choosing, pick, rng);
     expect(next).toMatchObject({ stage: 1, encounter: 'battle', phase: 'fighting', weaponOffer: null });
@@ -217,7 +245,7 @@ describe('the weapon offer', () => {
     // Find a seed whose offer includes the held paintball gun.
     for (let seed = 1; seed <= 50; seed++) {
       const r = createRng(seed);
-      const run = updateBattle(advance(createRun(r), 1), { ...advance(createRun(r), 1).battle, enemies: [], status: 'won' }, r);
+      const run = updateBattle(advance(createRun(r), FIRST_BOSS), { ...advance(createRun(r), FIRST_BOSS).battle, enemies: [], status: 'won' }, r);
       if (run.weaponOffer?.includes('paintballGun')) {
         expect(chooseWeapon(run, 'paintballGun', r).battle.weapon).toBe('paintballGun');
         return;

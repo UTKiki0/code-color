@@ -28,7 +28,7 @@ describe('new battle', () => {
     expect(state.status).toBe('playing');
     expect(state.playerHp).toBe(PLAYER_START_HP);
     expect(state.paint).toEqual({ red: 0, yellow: 0, blue: 0 });
-    expect(state.enemies.map((e) => e.countdown)).toEqual(STAGES[0]!.battle.map((e) => e.countdown));
+    expect(state.enemies.map((e) => e.countdown)).toEqual(STAGES[0]!.battles[0]!.map((e) => e.countdown));
   });
 
   it('restart gives a fresh battle after the old one is over', () => {

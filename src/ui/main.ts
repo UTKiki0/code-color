@@ -6,6 +6,7 @@ import { startSession, type SessionMode } from './session';
 //   ?seed=123   a repeatable game; otherwise each load is random
 //   ?fullPaint  start with full paint bottles, so mixing and rainbow can be tried quickly
 //   ?battle     a single regular battle instead of a run (?battle=2 for stage 2's battle)
+//   ?round=2    with ?battle, play that regular battle of the stage (default 1)
 //   ?boss       a single boss battle instead of a run (?boss=3 for stage 3's boss)
 //   ?ability=heal  with ?boss, give that boss this ability (paintThief, inkBlot, shield, heal)
 //   ?testing    show the weapon dropdown during a run
@@ -19,7 +20,7 @@ const stageParam = (name: string) => Math.min(3, Math.max(1, Math.round(Number(p
 const mode: SessionMode = params.has('boss')
   ? { kind: 'boss', stage: stageParam('boss') }
   : params.has('battle')
-    ? { kind: 'battle', stage: stageParam('battle') }
+    ? { kind: 'battle', stage: stageParam('battle'), round: Math.max(1, Math.round(Number(params.get('round'))) || 1) }
     : { kind: 'run' };
 
 const abilityParam = params.get('ability') as BossAbility | null;

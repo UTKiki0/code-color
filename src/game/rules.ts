@@ -85,23 +85,33 @@ export const SHIELD_BREAK_TURNS = 3; // turns a shield stays down after paint hi
 export const INK_BLOT_COUNT = 4; // bottles turned into empties
 export const PAINT_THIEF_AMOUNT = 3; // paint taken from the player's fullest bottle
 
-// A run has three stages. Each is a regular battle followed by a boss.
+// A run has three stages. Each is regular battles (rounds, in order) followed by a boss. The later
+// round of a stage is a bit tougher than the earlier one (+2 HP each; Developer's choice, 2026-11-17).
 // Starting values, to tune by playtesting (see spec.md).
 export interface Stage {
-  battle: EnemyDef[];
+  battles: EnemyDef[][]; // one list of enemies per regular battle, in the order they are fought
   boss: EnemyDef;
 }
 export const STAGES: Stage[] = [
   {
-    battle: [{ hp: 10, countdown: 4 }, { hp: 10, countdown: 5 }, { hp: 10, countdown: 6 }],
+    battles: [
+      [{ hp: 10, countdown: 4 }, { hp: 10, countdown: 5 }, { hp: 10, countdown: 6 }],
+      [{ hp: 12, countdown: 4 }, { hp: 12, countdown: 5 }, { hp: 12, countdown: 6 }],
+    ],
     boss: { hp: 30, countdown: 5, attack: 4, boss: true },
   },
   {
-    battle: [{ hp: 12, countdown: 4 }, { hp: 12, countdown: 4 }, { hp: 12, countdown: 5 }],
+    battles: [
+      [{ hp: 12, countdown: 4 }, { hp: 12, countdown: 4 }, { hp: 12, countdown: 5 }],
+      [{ hp: 14, countdown: 4 }, { hp: 14, countdown: 4 }, { hp: 14, countdown: 5 }],
+    ],
     boss: { hp: 40, countdown: 5, attack: 5, boss: true },
   },
   {
-    battle: [{ hp: 14, countdown: 3 }, { hp: 14, countdown: 4 }, { hp: 14, countdown: 5 }],
+    battles: [
+      [{ hp: 14, countdown: 3 }, { hp: 14, countdown: 4 }, { hp: 14, countdown: 5 }],
+      [{ hp: 16, countdown: 3 }, { hp: 16, countdown: 4 }, { hp: 16, countdown: 5 }],
+    ],
     boss: { hp: 50, countdown: 5, attack: 6, boss: true },
   },
 ];

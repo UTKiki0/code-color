@@ -19,7 +19,7 @@ export interface ViewOptions {
   attackedEnemies?: number[];
   playerHit?: boolean;
   // Run display. These stay the same for every frame of a battle, so replay frames repeat them.
-  progress?: { stage: number; encounter: 'battle' | 'boss'; stages: number };
+  progress?: { stage: number; encounter: 'battle' | 'boss'; round: number; stageSizes: number[] }; // stageSizes: encounters in each stage
   bossFight?: boolean; // one large boss card instead of three enemy cards
   testControls?: boolean; // show the weapon dropdown (a test setting)
   restartLabel?: string;
@@ -133,18 +133,23 @@ function palette(state: BattleState): HTMLElement {
   return root;
 }
 
-/** The run's position: six steps (a battle and a boss in each of three stages). */
+/** The run's position: one step per encounter (each stage's battles, then its boss). */
 function progressStrip(p: NonNullable<ViewOptions['progress']>): HTMLElement {
-  const current = p.stage * 2 + (p.encounter === 'boss' ? 1 : 0);
-  const kind = p.encounter === 'boss' ? 'Boss' : 'Battle';
-  const strip = el('div', 'progress', { role: 'img', 'aria-label': `Stage ${p.stage + 1} of ${p.stages}: ${kind}` });
-  strip.append(el('span', 'progress-label', {}, `Stage ${p.stage + 1}/${p.stages}: ${kind}`));
+  const battles = p.stageSizes[p.stage]! - 1; // regular battles in this stage
+  const before = p.stageSizes.slice(0, p.stage).reduce((sum, n) => sum + n, 0);
+  const current = before + (p.encounter === 'boss' ? battles : p.round);
+  const kind = p.encounter === 'boss' ? 'Boss' : battles > 1 ? `Battle ${p.round + 1}/${battles}` : 'Battle';
+  const strip = el('div', 'progress', { role: 'img', 'aria-label': `Stage ${p.stage + 1} of ${p.stageSizes.length}: ${kind}` });
+  strip.append(el('span', 'progress-label', {}, `Stage ${p.stage + 1}/${p.stageSizes.length}: ${kind}`));
   const steps = el('div', 'steps', { 'aria-hidden': 'true' });
-  for (let i = 0; i < p.stages * 2; i++) {
-    const boss = i % 2 === 1;
-    // Done steps are filled, the current step is outlined and bold, and bosses use a star:
-    // position is not shown by color alone.
-    steps.append(el('span', `step${boss ? ' boss' : ''}${i < current ? ' done' : ''}${i === current ? ' current' : ''}`, {}, boss ? '\u2605' : '\u25CF'));
+  let i = 0;
+  for (const size of p.stageSizes) {
+    for (let k = 0; k < size; k++, i++) {
+      const boss = k === size - 1; // each stage ends with its boss
+      // Done steps are filled, the current step is outlined and bold, and bosses use a star:
+      // position is not shown by color alone.
+      steps.append(el('span', `step${boss ? ' boss' : ''}${i < current ? ' done' : ''}${i === current ? ' current' : ''}`, {}, boss ? '\u2605' : '\u25CF'));
+    }
   }
   strip.append(steps);
   return strip;

@@ -2,7 +2,7 @@ import { createBattle, takeTurn, useItem as useItemTurn, type BattleEvent, type 
 import type { Cell } from '../game/board';
 import { mix, spend, useMix } from '../game/paint';
 import { createRng, type Rng } from '../game/rng';
-import { chooseWeapon, continueRun, createRun, drawBossAbilities, updateBattle, type RunState } from '../game/run';
+import { chooseWeapon, continueRun, createRun, drawBossAbilities, nextEncounter, updateBattle, type RunState } from '../game/run';
 import { PAINT_MAX, PLAYER_START_HP, POST_BOSS_HEAL, SPEND_COST, STAGES, type BossAbility, type PaintColor } from '../game/rules';
 import { floatOverEnemy, floatOverPlayer } from './fx';
 import { attachInput } from './input';
@@ -15,7 +15,7 @@ import { renderBattle, type ViewOptions } from './view';
 // returned events. The game state is the source of truth; this file never changes it directly.
 
 // run: the full run. battle / boss: one regular battle or boss of a stage, for testing.
-export type SessionMode = { kind: 'run' } | { kind: 'battle' | 'boss'; stage: number };
+export type SessionMode = { kind: 'run' } | { kind: 'battle'; stage: number; round: number } | { kind: 'boss'; stage: number };
 export interface SessionOptions {
   fullPaint: boolean; // test setting: start with full paint bottles
   mode: SessionMode;
@@ -26,6 +26,11 @@ export interface SessionOptions {
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // A boss fight has one enemy, called Boss on its card; otherwise enemies are Canvas 1 to 3.
+/** A short name for an encounter: "stage 2 boss" or "stage 1 battle 2". */
+const encounterName = (e: { stage: number; encounter: 'battle' | 'boss'; round: number }) =>
+  `stage ${e.stage + 1} ${e.encounter === 'boss' ? 'boss' : STAGES[e.stage]!.battles.length > 1 ? `battle ${e.round + 1}` : 'battle'}`;
+
+const cap = (text: string) => text[0]!.toUpperCase() + text.slice(1);
 const enemyNameFor = (bossFight: boolean) => (id: number) => (bossFight ? 'Boss' : `Canvas ${id + 1}`);
 
 /** Plain-language summary of what happened, shown in the message line. */
@@ -120,13 +125,13 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
       run = createRun(rng);
       if (options.fullPaint) run = { ...run, battle: { ...run.battle, paint: { ...FULL_PAINT } } };
       state = run.battle;
-      message = 'Stage 1: battle. Swipe a bottle to match three. White bottles hurt enemies; paint can be spent or mixed.';
+      message = 'Stage 1, battle 1. Swipe a bottle to match three. White bottles hurt enemies; paint can be spent or mixed.';
     } else {
       const stage = STAGES[mode.stage - 1]!;
       const ability = options.ability ?? drawBossAbilities(rng, 1)[0];
-      const enemies = mode.kind === 'boss' ? [{ ...stage.boss, ability }] : stage.battle;
+      const enemies = mode.kind === 'boss' ? [{ ...stage.boss, ability }] : stage.battles[Math.min(mode.round, stage.battles.length) - 1]!;
       state = createBattle(rng, { enemies, paint: options.fullPaint ? FULL_PAINT : undefined });
-      message = `Test ${mode.kind}, stage ${mode.stage}. Swipe a bottle to match three.`;
+      message = `Test ${mode.kind}, stage ${mode.stage}${mode.kind === 'battle' ? `, battle ${mode.round}` : ''}. Swipe a bottle to match three.`;
     }
   };
 
@@ -138,7 +143,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
 
   // Options that stay the same for every frame of a battle, including the replay frames.
   const baseView = (): Partial<ViewOptions> => ({
-    progress: run ? { stage: run.stage, encounter: run.encounter, stages: STAGES.length } : undefined,
+    progress: run ? { stage: run.stage, encounter: run.encounter, round: run.round, stageSizes: STAGES.map((st) => st.battles.length + 1) } : undefined,
     bossFight: run ? run.encounter === 'boss' : mode.kind === 'boss',
     testControls: options.testing || mode.kind !== 'run',
     restartLabel: run ? 'New run' : 'Restart',
@@ -156,7 +161,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
     if (run.phase === 'lost') {
       return {
         title: 'Run lost',
-        lines: [`You fell in stage ${run.stage + 1} (${run.encounter}).`],
+        lines: [`You fell in ${encounterName(run)}.`],
         button: { label: 'New run', action: 'restart' },
       };
     }
@@ -167,7 +172,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
         `HP ${state.playerHp}/${PLAYER_START_HP}`,
         `Paint kept: R ${paint.red}, Y ${paint.yellow}, B ${paint.blue}`,
         afterBoss ? `You heal ${POST_BOSS_HEAL} HP.` : 'No healing between battles.',
-        afterBoss ? `Next: stage ${run.stage + 2} battle.` : `Next: stage ${run.stage + 1} boss.`,
+        `Next: ${encounterName(nextEncounter(run))}.`,
       ];
       // A held mix is discarded when the battle ends, so say so rather than lose it silently.
       if (state.heldMix) lines.push(`Your ${state.heldMix} mix was not used and will be lost.`);
@@ -283,7 +288,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
       run = continueRun(run, rng);
       state = run.battle;
       const healed = state.playerHp - hpBefore;
-      const where = `Stage ${run.stage + 1}: ${run.encounter}.`;
+      const where = `${cap(encounterName(run))}.`;
       message = healed > 0 ? `${where} Healed ${healed} HP.` : where;
       draw();
     },
@@ -296,7 +301,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
       state = run.battle;
       const healed = state.playerHp - hpBefore;
       const weaponNote = weapon === previous ? `Kept the ${WEAPON_INFO[weapon].label}.` : `Now using the ${WEAPON_INFO[weapon].label}.`;
-      message = `Stage ${run.stage + 1}: ${run.encounter}. ${healed > 0 ? `Healed ${healed} HP. ` : ''}${weaponNote}`;
+      message = `${cap(encounterName(run))}. ${healed > 0 ? `Healed ${healed} HP. ` : ''}${weaponNote}`;
       draw();
     },
 

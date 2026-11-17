@@ -2,7 +2,7 @@ import { createBattle, type BattleState } from './battle';
 import type { Rng } from './rng';
 import { BOSS_ABILITIES, POST_BOSS_HEAL, PLAYER_START_HP, STAGES, WEAPONS, WEAPON_OFFER_SIZE, type BossAbility, type Weapon } from './rules';
 
-// A run: three stages, each a regular battle then a boss. This file decides which
+// A run: three stages, each some regular battles then a boss. This file decides which
 // battle comes next and what carries over. The battle itself is played in battle.ts.
 
 export type Encounter = 'battle' | 'boss';
@@ -17,16 +17,24 @@ export type RunPhase = 'fighting' | 'cleared' | 'choosingWeapon' | 'won' | 'lost
 export interface RunState {
   stage: number; // index into STAGES
   encounter: Encounter;
+  round: number; // which regular battle of the stage (0 for the first); 0 during a boss
   battle: BattleState;
   phase: RunPhase;
   weaponOffer: Weapon[] | null; // the weapons to choose from, only while choosingWeapon
   bossAbilities: BossAbility[]; // each stage's boss ability, fixed for the run
 }
 
-const enemiesFor = (stage: number, encounter: Encounter, bossAbilities: BossAbility[]) =>
+const enemiesFor = (stage: number, encounter: Encounter, round: number, bossAbilities: BossAbility[]) =>
   encounter === 'boss'
     ? [{ ...STAGES[stage]!.boss, ability: bossAbilities[stage] }]
-    : STAGES[stage]!.battle;
+    : STAGES[stage]!.battles[round]!;
+
+/** Where the run goes after the current encounter: the next round, the stage's boss, or the next stage. */
+export function nextEncounter(run: Pick<RunState, 'stage' | 'encounter' | 'round'>): Pick<RunState, 'stage' | 'encounter' | 'round'> {
+  if (run.encounter === 'boss') return { stage: run.stage + 1, encounter: 'battle', round: 0 };
+  if (run.round + 1 < STAGES[run.stage]!.battles.length) return { stage: run.stage, encounter: 'battle', round: run.round + 1 };
+  return { stage: run.stage, encounter: 'boss', round: 0 };
+}
 
 /** Gives each boss a different ability, drawn at random; one of the four is left out. */
 export function drawBossAbilities(rng: Rng, count: number = STAGES.length): BossAbility[] {
@@ -38,9 +46,9 @@ export function drawBossAbilities(rng: Rng, count: number = STAGES.length): Boss
 
 /** A new run, at the first battle of the first stage. */
 export function createRun(rng: Rng): RunState {
-  const battle = createBattle(rng, { enemies: enemiesFor(0, 'battle', []) });
+  const battle = createBattle(rng, { enemies: enemiesFor(0, 'battle', 0, []) });
   // Drawn after the first board so the abilities do not change which board a seed gives.
-  return { stage: 0, encounter: 'battle', battle, phase: 'fighting', weaponOffer: null, bossAbilities: drawBossAbilities(rng) };
+  return { stage: 0, encounter: 'battle', round: 0, battle, phase: 'fighting', weaponOffer: null, bossAbilities: drawBossAbilities(rng) };
 }
 
 /** Draws distinct weapons at random from all weapons for the player to choose between. */
@@ -76,16 +84,15 @@ export function updateBattle(run: RunState, battle: BattleState, rng: Rng): RunS
 export function continueRun(run: RunState, rng: Rng): RunState {
   if (run.phase !== 'cleared') return run;
   const afterBoss = run.encounter === 'boss';
-  const stage = afterBoss ? run.stage + 1 : run.stage;
-  const encounter: Encounter = afterBoss ? 'battle' : 'boss';
+  const next = nextEncounter(run);
   const heal = afterBoss ? POST_BOSS_HEAL : 0;
   const battle = createBattle(rng, {
-    enemies: enemiesFor(stage, encounter, run.bossAbilities),
+    enemies: enemiesFor(next.stage, next.encounter, next.round, run.bossAbilities),
     playerHp: Math.min(PLAYER_START_HP, run.battle.playerHp + heal),
     paint: run.battle.paint,
     weapon: run.battle.weapon,
   });
-  return { stage, encounter, battle, phase: 'fighting', weaponOffer: null, bossAbilities: run.bossAbilities };
+  return { ...next, battle, phase: 'fighting', weaponOffer: null, bossAbilities: run.bossAbilities };
 }
 
 /**
