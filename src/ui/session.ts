@@ -13,6 +13,7 @@ import { ITEM_INFO } from './items';
 import { playItem, playMove } from './replay';
 import { WEAPON_INFO } from './weapons';
 import { renderSelect } from './select';
+import { unlockMessage } from './unlocktext';
 import { renderBattle, type ViewOptions } from './view';
 
 // Holds the current run (or a single test battle), sends commands to game/, and plays the
@@ -120,13 +121,15 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
   let canSave = loaded.canSave;
   let characterId: CharacterId = options.character ?? DEFAULT_CHARACTER;
   let onSelectScreen = mode.kind === 'run' && options.character === undefined;
-  let justUnlocked: CharacterId[] = []; // characters unlocked by the encounter just won, for its screen
+  // Everything unlocked so far in this run. It is saved at once (so closing the page keeps it) but
+  // only announced on the end screen.
+  let unlockedThisRun: CharacterId[] = [];
 
   /** Starts a new run, or a new single battle in a test mode. */
   const begin = () => {
     if (mode.kind === 'run') {
       run = createRun(rng, characterId);
-      justUnlocked = [];
+      unlockedThisRun = [];
       if (options.fullPaint) run = { ...run, battle: { ...run.battle, paint: { ...FULL_PAINT } } };
       state = run.battle;
       message = `${characterById(characterId).name}: stage 1, battle 1. Swipe a bottle to match three. White bottles hurt enemies; paint can be spent or mixed.`;
@@ -148,7 +151,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
     const result = unlock(unlocked, goalsReached(run));
     if (result.newly.length === 0) return;
     unlocked = result.unlocked;
-    justUnlocked = result.newly;
+    unlockedThisRun = [...unlockedThisRun, ...result.newly];
     if (!options.unlockAll) canSave = saveUnlocked(storage, unlocked);
   };
 
@@ -161,14 +164,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
     menuButton: run !== null,
   });
 
-  /** Lines announcing characters unlocked by what was just won, and a warning if they cannot be kept. */
-  const unlockLines = (): string[] => {
-    if (justUnlocked.length === 0) return [];
-    const names = justUnlocked.map((id) => characterById(id).name).join(' and ');
-    const lines = [`New character unlocked: ${names}!`];
-    if (!canSave) lines.push('Progress cannot be saved in this browser, so this will not be kept.');
-    return lines;
-  };
+  const unlockLines = (): string[] => unlockMessage(unlockedThisRun, canSave);
 
   // The end-of-run buttons: Rerun starts again with the same character, Menu goes back to select.
   const endButtons: NonNullable<NonNullable<ViewOptions['overlay']>['buttons']> = [
@@ -185,7 +181,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
       return { title: 'Run won!', lines: ['You beat all three bosses.', ...unlockLines()], buttons: endButtons };
     }
     if (run.phase === 'lost') {
-      return { title: 'Run lost', lines: [`You fell in ${encounterName(run)}.`], buttons: endButtons };
+      return { title: 'Run lost', lines: [`You fell in ${encounterName(run)}.`, ...unlockLines()], buttons: endButtons };
     }
     if (run.phase === 'cleared' || run.phase === 'choosingWeapon') {
       const afterBoss = run.encounter === 'boss';
@@ -206,7 +202,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
           label: weapon === state.weapon ? `Keep: ${WEAPON_INFO[weapon].label}` : WEAPON_INFO[weapon].label,
           description: WEAPON_INFO[weapon].description,
         }));
-        return { title, lines: [...unlockLines(), ...lines, 'Choose your next weapon:'], choices };
+        return { title, lines: [...lines, 'Choose your next weapon:'], choices };
       }
       return { title, lines, buttons: [{ label: 'Continue', action: 'continue' }] };
     }
@@ -309,7 +305,6 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
     continueRun() {
       if (!run || run.phase !== 'cleared') return;
       const hpBefore = state.playerHp;
-      justUnlocked = [];
       run = continueRun(run, rng);
       state = run.battle;
       const healed = state.playerHp - hpBefore;
@@ -322,7 +317,6 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
       if (!run || run.phase !== 'choosingWeapon') return;
       const hpBefore = state.playerHp;
       const previous = state.weapon;
-      justUnlocked = [];
       run = chooseWeapon(run, weapon, rng);
       state = run.battle;
       const healed = state.playerHp - hpBefore;
@@ -342,7 +336,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
     menu() {
       if (busy) return;
       run = null;
-      justUnlocked = [];
+      unlockedThisRun = [];
       onSelectScreen = true;
       draw();
     },
