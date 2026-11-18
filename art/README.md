@@ -35,3 +35,11 @@ The scale lives in one place, `src/ui/styles.css` (`--tile` and `--pixel`).
   - Row 1: empty bottle, orange mix, green mix, purple mix
   - Row 2: column line (vertical arrow), row line (horizontal arrow), bomb (black cross), yellow clear
   - Row 3: red clear, blue clear, grey clear
+- `Canvases_Normal.png`: 256 x 384 pixels, a 2 x 3 grid of 128 x 128 canvas enemies (column, row, counting from 0):
+  - (0,0) blank: the boss, for now
+  - (1,0) tongue out, (0,1) angry with teeth, (1,1) happy, (0,2) flat mouth: the four regular enemies
+  - (1,2) is empty
+  Each canvas is drawn inside the same box, 82 x 106 pixels, starting 23 pixels across and 19 down in its square.
+  The game shows only that box (so enemies fit three across), at the same scale as the bottles.
+- `Countdown Splat.png`: 32 x 64 pixels, two 32 x 32 splats: red on top (the enemy's attack countdown) and green below (a boss's ability countdown). The number is drawn on top of the splat by the game. The splats sit on the canvas's upper-right corner, the green one above the red one, overlapping the corner because there is no room beside the canvas at this scale.
+

@@ -14,6 +14,7 @@ import { playItem, playMove } from './replay';
 import { WEAPON_INFO } from './weapons';
 import { renderSelect } from './select';
 import { UnlockAnnouncer } from './announcer';
+import { dealFaces, type Face } from './enemyart';
 import { renderBattle, type ViewOptions } from './view';
 
 // Holds the current run (or a single test battle), sends commands to game/, and plays the
@@ -129,8 +130,15 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
   // announced, one popup each, when the run ends or the player leaves it with Rerun or Menu.
   const announcer = new UnlockAnnouncer();
 
+  // Each regular enemy's picture, dealt afresh for every battle with its own random numbers (so the
+  // faces never change how the game plays out, and the same seed gives the same faces).
+  const cosmetic: Rng = createRng(seed ^ 0x5bd1e995);
+  let faces: Face[] = [];
+  const dealEnemyFaces = () => { faces = dealFaces(3, cosmetic); };
+
   /** Starts a new run, or a new single battle in a test mode. */
   const begin = () => {
+    dealEnemyFaces();
     if (mode.kind === 'run') {
       run = createRun(rng, characterId);
       announcer.reset();
@@ -167,6 +175,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
   const baseView = (): Partial<ViewOptions> => ({
     progress: run ? { stage: run.stage, encounter: run.encounter, round: run.round, stageSizes: STAGES.map((st) => st.battles.length + 1) } : undefined,
     bossFight: run ? run.encounter === 'boss' : mode.kind === 'boss',
+    faces,
     testControls: options.testing || mode.kind !== 'run',
     restartLabel: run ? 'Rerun' : 'Restart',
     menuButton: run !== null,
@@ -319,6 +328,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
       if (!run || run.phase !== 'cleared') return;
       const hpBefore = state.playerHp;
       run = continueRun(run, rng);
+      dealEnemyFaces();
       state = run.battle;
       const healed = state.playerHp - hpBefore;
       const where = `${cap(encounterName(run))}.`;
@@ -331,6 +341,7 @@ export function startSession(root: HTMLElement, seed: number, options: SessionOp
       const hpBefore = state.playerHp;
       const previous = state.weapon;
       run = chooseWeapon(run, weapon, rng);
+      dealEnemyFaces();
       state = run.battle;
       const healed = state.playerHp - hpBefore;
       const weaponNote = weapon === previous ? `Kept the ${WEAPON_INFO[weapon].label}.` : `Now using the ${WEAPON_INFO[weapon].label}.`;

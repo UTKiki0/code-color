@@ -48,4 +48,5 @@ Development tooling (installed 2026-11-16; licenses are from the Agent's general
 - Vitest 5.1.0, https://vitest.dev, MIT.
 - Node 26.13.1 (installed with Homebrew), https://nodejs.org. Used for development only.
 - Art: `art/Paint bottle.png`, a 128 by 128 pixel sprite sheet of the paint bottles, mixes, and items, supplied by the Developer on 2026-11-17 (used in the game from that date). Origin and licence: the Developer's own work, to be confirmed by the Developer.
+- Art: `art/Canvases_Normal.png` (the canvas enemies) and `art/Countdown Splat.png` (the countdown splats), supplied by the Developer on 2026-11-18, with a hand-drawn sketch of how to lay them out (`reference/IMG_0150.HEIC`). Origin and licence: the Developer's own work, to be confirmed by the Developer.
 

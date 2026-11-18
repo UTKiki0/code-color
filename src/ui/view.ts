@@ -1,6 +1,7 @@
 import type { BattleState, Enemy } from '../game/battle';
 import type { Cell } from '../game/board';
 import { GAME_TITLE } from '../game/title';
+import type { Face } from './enemyart';
 import { ITEM_INFO } from './items';
 import { WEAPON_INFO, WEAPON_LIST } from './weapons';
 import { PAINT_COLORS, PAINT_MAX, PLAYER_START_HP, isItem, type Bottle, type BossAbility, type MixColor, type PaintColor, type Weapon } from '../game/rules';
@@ -20,7 +21,8 @@ export interface ViewOptions {
   playerHit?: boolean;
   // Run display. These stay the same for every frame of a battle, so replay frames repeat them.
   progress?: { stage: number; encounter: 'battle' | 'boss'; round: number; stageSizes: number[] }; // stageSizes: encounters in each stage
-  bossFight?: boolean; // one large boss card instead of three enemy cards
+  bossFight?: boolean; // one boss instead of three enemies
+  faces?: Face[]; // each regular enemy's picture, by enemy id (the boss uses the blank canvas)
   testControls?: boolean; // show the weapon dropdown (a test setting)
   restartLabel?: string;
   menuButton?: boolean; // show a Menu button (back to the character select screen) in the top bar
@@ -67,24 +69,44 @@ function abilityText(ability: NonNullable<Enemy['ability']>): string {
 
 function enemyCard(enemy: Enemy, view: ViewOptions): HTMLElement {
   const name = view.bossFight ? 'Boss' : `Canvas ${enemy.id + 1}`;
-  const card = el('div', `enemy${view.bossFight ? ' boss' : ''}${enemy.ability?.kind === 'shield' && enemy.ability.countdown === 0 ? ' shielded' : ''}${view.attackedEnemies?.includes(enemy.id) ? ' attack' : ''}`, {
+  const shielded = enemy.ability?.kind === 'shield' && enemy.ability.countdown === 0;
+  const card = el('div', `enemy${view.bossFight ? ' boss' : ''}${shielded ? ' shielded' : ''}${view.attackedEnemies?.includes(enemy.id) ? ' attack' : ''}`, {
     'data-enemy-id': String(enemy.id),
     role: 'group',
     'aria-label': `${name}: ${Math.max(0, enemy.hp)} of ${enemy.maxHp} HP, attacks in ${enemy.countdown} turns${enemy.ability ? `, ${abilityText(enemy.ability)}` : ''}`,
   });
-  card.append(el('h2', '', {}, name));
-  const bar = el('div', 'bar');
-  const hp = Math.max(0, enemy.hp); // enemies can be shown below zero HP while a move is replayed
-  bar.append(el('div', 'fill', { style: `width:${(hp / enemy.maxHp) * 100}%` }));
-  card.append(bar, el('div', '', {}, `HP ${hp}/${enemy.maxHp}`));
-  card.append(el('div', 'countdown', {}, `Attacks in ${enemy.countdown}`));
+
+  // The picture, with the countdown splats on its upper-right corner: red for the attack
+  // countdown, and for a boss a green one above it for the ability countdown (Developer's sketch).
+  const face: Face = view.bossFight ? 'blank' : view.faces?.[enemy.id] ?? 'blank';
+  const stage = el('div', 'enemy-stage');
+  stage.append(el('div', `canvas canvas-${face}`));
+  const splats = el('div', 'splats');
   if (enemy.ability) {
-    // Pulses when the ability is one turn away, so the player has a warning.
-    // For a shield, "one turn away" means it returns next turn.
-    const soon = enemy.ability.countdown === 1;
-    card.append(el('div', `ability${soon ? ' soon' : ''}`, {}, abilityText(enemy.ability)));
+    // A shield has no countdown while it is up, so its splat shows only the turns until it returns.
+    const n = enemy.ability.countdown;
+    const hidden = enemy.ability.kind === 'shield' && n === 0;
+    if (!hidden) splats.append(el('div', `splat splat-ability${n === 1 ? ' soon' : ''}`, { 'aria-hidden': 'true' }, String(n)));
   }
-  card.append(el('div', 'status', {}, enemy.burn ? `Burn ${enemy.burn.damage} x ${enemy.burn.turnsLeft}` : ''));
+  splats.append(el('div', 'splat splat-attack', { 'aria-hidden': 'true' }, String(enemy.countdown)));
+  stage.append(splats);
+  card.append(stage);
+
+  const hp = Math.max(0, enemy.hp); // enemies can be shown below zero HP while a move is replayed
+  const bar = el('div', 'hp-bar');
+  // The numbers sit inside the bar (Developer's sketch); a burn is added to them for now, in text
+  // that the Developer will replace with a picture later.
+  const burn = enemy.burn ? ` burn ${enemy.burn.damage}x${enemy.burn.turnsLeft}` : '';
+  bar.append(el('div', 'fill', { style: `width:${(hp / enemy.maxHp) * 100}%` }), el('span', '', {}, `${hp}/${enemy.maxHp}${burn}`));
+  card.append(bar);
+
+  // A boss also gets a small text note about its ability and shield, for testing only: it sits
+  // beside the boss, and the Developer will replace it with pictures later.
+  if (enemy.ability) {
+    const notes = el('div', 'enemy-notes');
+    notes.append(el('div', `ability${enemy.ability.countdown === 1 ? ' soon' : ''}`, {}, abilityText(enemy.ability)));
+    card.append(notes);
+  }
   return card;
 }
 
